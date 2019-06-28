@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include<stdio.h>
+#include <stdio.h>
 
 enum RB_COLOR {RED, BLACK};
 
@@ -15,25 +15,74 @@ typedef struct s_rbNode
 
 } rbNode;
 
+#ifdef DEBUG
+
+    void rb_depth_print(rbNode *node, int depth)
+    {
+        if(node == NULL && depth == 0) printf("- ");
+        if(node == NULL) return;
+        if(depth == 0)
+        {
+            printf("(%s%d) ",(node->color == RED)? "R" : "B", node->data);
+        }
+        else
+        {
+            rb_depth_print(node->left, depth -1);
+            rb_depth_print(node->right, depth -1);
+        }       
+    }
+
+    void rb_print(rbNode *root)
+    {
+        if(!root) 
+        {
+            printf("Empty\n");
+            return;
+        }
+
+        int rb_height = 0;
+        rbNode *node = root;
+        // this should find the height
+        while(node != NULL)
+        {
+            rb_height++;
+            if(node->left)
+                node = node->left;
+            else if(node->right) node = node->right;
+            else node = NULL;
+        }
+        printf("rb height (NOT CORRECT) %d\n", rb_height);
+        for(int i = 0; i < rb_height +1; i++)
+        {
+            for(int j = 0; j < rb_height-i-1; j++)
+                printf("     ");
+            
+            rb_depth_print(root, i);
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+#endif
+
 
 inline static void rb_LeftRotate(rbNode **root, rbNode* x)
 {
     rbNode *y = x->right;
 
-    if(y->left != NULL)
+    x->right = y->left;
+    if(y->left)
         y->left->parent = x;
-
     y->parent = x->parent;
-
     if(x->parent == NULL)
         (*root) = y;
-    else if (x == x->parent->left)
+    else if(x == x->parent->left)
         x->parent->left = y;
-    else
+    else 
         x->parent->right = y;
-
+    
     y->left = x;
-    x->parent = y;    
+    x->parent = y;                   
 }
 
 
@@ -41,18 +90,17 @@ inline static void rb_RightRotate(rbNode **root, rbNode* x)
 {
     rbNode *y = x->left;
 
-    if(y->right != NULL)
+    x->left = y->right;
+    if(y->right)
         y->right->parent = x;
-
     y->parent = x->parent;
-
     if(x->parent == NULL)
         (*root) = y;
-    else if (x == x->parent->right)
+    else if(x == x->parent->right)
         x->parent->right = y;
-    else
+    else 
         x->parent->left = y;
-
+    
     y->right = x;
     x->parent = y;    
 }
@@ -61,12 +109,12 @@ inline static void rb_RightRotate(rbNode **root, rbNode* x)
 inline static void rb_InsertFixup(rbNode **root, rbNode* z)
 {
     rbNode *x, *y;
-    while(z->parent->color == RED)
+    while(z && z->parent && z->parent->color == RED)
     {
         if(z->parent == z->parent->parent->left)
         {
             y = z->parent->parent->right;
-            if(y->color == RED)
+            if(y && y->color == RED)
             {
                 z->parent->color = BLACK;
                 y->color = BLACK;
@@ -89,7 +137,7 @@ inline static void rb_InsertFixup(rbNode **root, rbNode* z)
         else
         {
             y = z->parent->parent->left;
-            if(y->color == RED)
+            if(y && y->color == RED)
             {
                 z->parent->color = BLACK;
                 y->color = BLACK;
@@ -101,15 +149,14 @@ inline static void rb_InsertFixup(rbNode **root, rbNode* z)
                 if(z == z->parent->left)
                     {
                         z = z->parent;
-                        rb_LeftRotate(root, z);
+                        rb_RightRotate(root, z);
                     }
-                    z->parent->color = BLACK;
-                    z->parent->parent->color = RED;
-                    rb_RightRotate(root, z->parent->parent);
+                z->parent->color = BLACK;
+                z->parent->parent->color = RED;
+                rb_LeftRotate(root, z->parent->parent);
             }
         }      
     }
-
     (*root)->color = BLACK;
 }
 
@@ -119,18 +166,19 @@ inline static void rb_InsertFixup(rbNode **root, rbNode* z)
  * @param rb_root radice dell'abero binario, puo puntare a null se l'abero va creato
  * @param data dati da inserire nel nodo
  */
-inline void rb_Insert(rbNode **rb_root, int data)
+void rb_Insert(rbNode **rb_root, int data)
 {
-    rbNode *new_node = (struct node*)malloc(sizeof(rbNode));
+    rbNode *new_node = (rbNode*)malloc(sizeof(rbNode));
     new_node->data = data;
     new_node->left = NULL;
     new_node->right = NULL;
     new_node->parent = NULL;
     new_node->color = RED;
 
+    // insert root if tree is empty
     if (*rb_root == NULL)
     {
-        new_node ->color = BLACK;
+        new_node->color = BLACK;
         (*rb_root) = new_node;
         return;
     }
@@ -141,19 +189,20 @@ inline void rb_Insert(rbNode **rb_root, int data)
     while(x != NULL)
     {
         y = x;
-        if(new_node ->data < x->data)
+        if(data < x->data)
             x = x->left;
         else
             x = x->right;        
     }
-    new_node ->parent = y;
+    new_node->parent = y;
 
-    if(new_node->data < y->data)
+    if(data < y->data)
         y->left = new_node;
     else
         y->right = new_node;
 
     rb_InsertFixup(rb_root, new_node);
+    printf("Inserted %d\n", data);
 }
 
 
@@ -197,8 +246,8 @@ inline static rbNode *rb_TreeSuccessor(rbNode* x)
 
 inline void rb_Delete(rbNode **rb_root, int data)
 {
-    rbNode *z = rb_Search(rb_root, data);
-    if(!z) return 0;
+    rbNode *z = rb_Search(*rb_root, data);
+    if(!z) return;
 
     rbNode *y;
 
