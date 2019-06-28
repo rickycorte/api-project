@@ -22,5 +22,20 @@ int main(int argc, char** argv)
    
     rb_print(tree);
 
+    for(int i = -30; i < -15; i++ )
+    {
+        rb_Delete1(&tree, i);
+    }
+
+    rb_print(tree);
+
+    for(int i = -40; i < 0; i++ )
+    {
+        rb_Delete1(&tree, i);
+    }
+
+    rb_print(tree);
+
+
     return 0;
 }

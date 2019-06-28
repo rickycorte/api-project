@@ -15,6 +15,10 @@ typedef struct s_rbNode
 
 } rbNode;
 
+/*****************************************
+ * DEBUG
+ *****************************************/
+
 #ifdef DEBUG
 
     void rb_depth_print(rbNode *node, int depth)
@@ -65,6 +69,9 @@ typedef struct s_rbNode
 
 #endif
 
+/*****************************************
+ * ROTATIONS
+ *****************************************/
 
 inline static void rb_LeftRotate(rbNode **root, rbNode* x)
 {
@@ -106,6 +113,13 @@ inline static void rb_RightRotate(rbNode **root, rbNode* x)
 }
 
 
+/*****************************************
+ * INSERTION
+ *****************************************/
+
+/**
+ * Fix three violations after insertion
+ */
 inline static void rb_InsertFixup(rbNode **root, rbNode* z)
 {
     rbNode *x, *y;
@@ -162,9 +176,10 @@ inline static void rb_InsertFixup(rbNode **root, rbNode* z)
 
 
 /**
- * Inserisci un elemento nuovo nell'abero binario
- * @param rb_root radice dell'abero binario, puo puntare a null se l'abero va creato
- * @param data dati da inserire nel nodo
+ * Insert a new node and rebalance tree
+ * 
+ * @param rb_root root of the tree, can be NULL if tree does not exist
+ * @param data data to insert in the tree
  */
 void rb_Insert(rbNode **rb_root, int data)
 {
@@ -206,13 +221,21 @@ void rb_Insert(rbNode **rb_root, int data)
 }
 
 
+/*****************************************
+ * SEARCH
+ *****************************************/
+
 /**
- *  Cerca un elemento nell'albero binario
+ * Search if a item is in the tree
+ * 
+ * @param rb_root tree root, can be NULL
+ * @param val value to search
+ * @return NULL if not found, pointer to tree element if found
  */
-inline rbNode *rb_Search(rbNode *rb_root, int val)
+rbNode *rb_Search(rbNode *rb_root, int val)
 {
     rbNode *itr = rb_root;
-    while(itr != NULL && val != itr->data)
+    while(itr && val != itr->data)
     {
         if(val < itr->data)
             itr = itr->left;
@@ -224,35 +247,169 @@ inline rbNode *rb_Search(rbNode *rb_root, int val)
 }
 
 
-inline static rbNode *rb_TreeSuccessor(rbNode* x)
-{
-    rbNode *y;
+/*****************************************
+ * DELETION
+ *****************************************/
 
-    if(x->right != NULL)
+/**
+ * Remove U and attach V
+ */
+inline static void rb_Trasnplant(rbNode **rb_root, rbNode *u, rbNode *v)
+{
+    if(u->parent == NULL)
+        (*rb_root) = v;
+    else if( u == u->parent->left)
+        u->parent->left = v;
+    else
+        u->parent->right = v;
+    if(v)
+        v->parent = u->parent;
+}
+
+
+inline static void rb_RemoveFixup(rbNode **rb_root, rbNode *x)
+{
+    rbNode *w = NULL;
+
+    while(x && x != *rb_root && x->color == BLACK)
     {
-        while(x->right != NULL)
-            x = x->right;
+        if(x == x->parent->left)
+        {
+            w = x->parent->right;
+            if(w->color == RED)
+            {
+                w->color = BLACK;
+                x->parent->color = RED;
+                rb_LeftRotate(rb_root, x->parent);
+                w = x->parent->right;
+            }
+            if(!w->right && !w->left && w->left->color == BLACK && w->right->color == BLACK)
+            {
+                w->color = RED;
+                x = x->parent;
+            }
+            else 
+            {
+                if(w->right->color == BLACK)
+                {
+                    if(w->left) w->left->color = BLACK;
+                    w->color = RED;
+                    rb_RightRotate(rb_root, w);
+                    w = x->parent->right;
+                }
+                w->color = x->parent->color;
+                x->parent->color = BLACK;
+                w->right->color = BLACK;
+                rb_LeftRotate(rb_root, x->parent);
+                x = *rb_root;
+            }
+        }
+        else
+        {
+            w = x->parent->left;
+            if(w->color == RED)
+            {
+                w->color = BLACK;
+                x->parent->color = RED;
+                rb_RightRotate(rb_root, x->parent);
+                w = x->parent->left;
+            }
+            if(!w->right && !w->left && w->right->color == BLACK && w->left->color == BLACK)
+            {
+                w->color = RED;
+                x = x->parent;
+            }
+            else 
+            {
+                if(w->left->color == BLACK)
+                {
+                    if(w->right) w->right->color = BLACK;
+                    w->color = RED;
+                    rb_LeftRotate(rb_root, w);
+                    w= x->parent->left;
+                }
+                w->color = x->parent->color;
+                x->parent->color = BLACK;
+                w->left->color = BLACK;
+                rb_RightRotate(rb_root, x->parent);
+                x = *rb_root;
+            }
+        }
     }
-    y= x->parent;
-    while (y != NULL && x == y->right)
+
+    if(x) x->color = BLACK;
+}
+
+
+inline static rbNode *rb_minimum(rbNode *rb_root)
+{
+    while(rb_root->left != NULL)
+        rb_root = rb_root->left;
+
+    return rb_root;
+}
+
+inline static void rb_Remove(rbNode **rb_root, rbNode *z)
+{
+    rbNode *x = NULL, *y = z;
+    enum RB_COLOR yCol = y->color;
+
+    if(z->left == NULL)
     {
-        x = y;
-        y->parent = y;
+        x = z->right;
+        rb_Trasnplant(rb_root, z, z->right);
+        free(z);
     }
-    
-    return y;
+    else if(z->right == NULL)
+    {
+        x = z->left;
+        rb_Trasnplant(rb_root, z, x); 
+        free(z);
+    }
+    else
+    {
+        y = rb_minimum(z->right);
+        yCol = y->color;
+        x = y->right;
+        if(y->parent == z)
+        {
+            if(x) x->parent = y;
+        }
+        else
+        {
+            rb_Trasnplant(rb_root, y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+
+        rb_Trasnplant(rb_root, z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;
+    }
+
+    if(yCol == BLACK)
+        rb_RemoveFixup(rb_root, x);
     
 }
 
-inline void rb_Delete(rbNode **rb_root, int data)
+
+
+/**
+ * Search and delete a node by value
+*/
+void rb_Delete1(rbNode **rb_root, int data)
 {
     rbNode *z = rb_Search(*rb_root, data);
-    if(!z) return;
+    if(!rb_root && !*rb_root && !z) return;
+    rb_Remove(rb_root, z);
+}
 
-    rbNode *y;
-
-    if(z->left == NULL || z->right == NULL)
-    {
-
-    }
+/**
+ * Delete tree node by direct reference
+ */
+void rbDelete2(rbNode **rb_root, rbNode *node)
+{
+    if(!rb_root && !*rb_root && !node) return;
+    rb_Remove(rb_root, node);
 }
