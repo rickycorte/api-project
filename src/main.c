@@ -15,13 +15,14 @@
 
 int main(int argc, char** argv)
 {
-    rbNode *tree = NULL;
+    rbTree tree = NULL;
     rb_print(tree);
     for(int i = 10; i > -40; i--)
         rb_Insert(&tree, i);
    
     rb_print(tree);
 
+/*
     for(int i = -30; i < -15; i++ )
     {
         rb_Delete1(&tree, i);
@@ -35,6 +36,7 @@ int main(int argc, char** argv)
     }
 
     rb_print(tree);
+*/
 
 
     return 0;
