@@ -136,7 +136,7 @@ static inline void irb_LeftRotation(rbTree *tree, rbNode *node)
     rbNode *y = node->right;
 #ifdef DEBUG
     if(!y->right)
-        printf("Left rotation error! %d node right can't be NULL", node->data);
+        DEBUG_PRINT("IRB_LeftRotation: %d node right can't be NULL\n", node->data);
 #endif
 
     node->right = y->left;
@@ -162,7 +162,7 @@ static inline void irb_RightRotation(rbTree *tree, rbNode *node)
     rbNode *y = node->left;
 #ifdef DEBUG
     if(!y->left)
-        printf("Right rotation error! %d node right can't be NULL", node->data);
+        DEBUG_PRINT("IRB_RightRotation: %d node right can't be NULL\n", node->data);
 #endif
 
     node->left = y->right;
@@ -213,7 +213,7 @@ static inline void irb_InsertFix(rbTree *tree, rbNode *node)
         #ifdef DEBUG
         if(!grandParent)
         {
-            DEBUG_PRINT("Missing grandparent of node %d", node->data);
+            DEBUG_PRINT("IRB_InsertFix: Missing grandparent of node %d\n", node->data);
             continue;
         } 
         #endif
@@ -287,7 +287,7 @@ void rb_Insert(rbTree *tree, int value)
     #ifdef RB_INPUT_CHECK
     if(!tree)
     {
-        DEBUG_PRINT("Error, must pass a not null tree pointer!");
+        DEBUG_PRINT("RB_Insert: Error, must pass a not null tree pointer!\n");
         return;
     }
     #endif
@@ -316,7 +316,7 @@ void rb_Insert(rbTree *tree, int value)
     //fix errors
     irb_InsertFix(tree, node);
 
-    DEBUG_PRINT("Inserted %d\n", value);
+    DEBUG_PRINT("RB_Insert: Inserted %d\n", value);
 }
 
 
@@ -336,7 +336,7 @@ rbNode *rb_Search(rbTree itr, int val)
     #ifdef RB_INPUT_CHECK
     if(!itr)
     {
-        DEBUG_PRINT("Can't search a null tree!");
+        DEBUG_PRINT("RB_Search: Can't search a null tree!\n");
         return NULL;
     }
     #endif
@@ -382,30 +382,32 @@ static inline void irb_RemoveFixup(rbTree *tree, rbNode *x, rbNode *xParent)
         if(x == xParent->left)
         {
             w = xParent->right;
-            if(w->color == RED)
+            if(!w) continue;
+            
+            if(w && w->color == RED)
             {
                 w->color = BLACK;
                 xParent->color = RED;
                 irb_LeftRotation(tree, xParent);
-                w = x->parent->right;
+                w = xParent->right;
             }
-            if(!w->right && !w->left && w->left->color == BLACK && w->right->color == BLACK)
+            if( (!w->right && !w->left) || ( w->left->color == BLACK && w->right->color == BLACK) )
             {
                 w->color = RED;
                 x = xParent;
             }
             else 
             {
-                if(w->right->color == BLACK)
+                if(!w->right || w->right->color == BLACK)
                 {
                     if(w->left) w->left->color = BLACK;
-                    w->color = RED;
-                    irb_RightRotation(tree, w);
+                    if(w) w->color = RED;
                     w = xParent->right;
+                    irb_RightRotation(tree, w);                   
                 }
                 w->color = xParent->color;
                 xParent->color = BLACK;
-                w->right->color = BLACK;
+                if(w->right) w->right->color = BLACK;
                 irb_LeftRotation(tree, xParent);
                 x = *tree;
             }
@@ -417,10 +419,10 @@ static inline void irb_RemoveFixup(rbTree *tree, rbNode *x, rbNode *xParent)
             {
                 w->color = BLACK;
                 xParent->color = RED;
-                irb_RightRotation(tree, xParent);
                 w = xParent->left;
+                irb_RightRotation(tree, xParent);
             }
-            if(!w->right && !w->left && w->right->color == BLACK && w->left->color == BLACK)
+            if( (!w->right && !w->left) || ( w->left->color == BLACK && w->right->color == BLACK)  )
             {
                 w->color = RED;
                 x = xParent;
@@ -431,12 +433,12 @@ static inline void irb_RemoveFixup(rbTree *tree, rbNode *x, rbNode *xParent)
                 {
                     if(w->right) w->right->color = BLACK;
                     w->color = RED;
-                    irb_LeftRotation(tree, w);
                     w= xParent->left;
+                    irb_LeftRotation(tree, w);
                 }
                 w->color = xParent->color;
                 xParent->color = BLACK;
-                w->left->color = BLACK;
+                if(w->left) w->left->color = BLACK;
                 irb_RightRotation(tree, xParent);
                 x = *tree;
             }
@@ -460,15 +462,16 @@ void rb_Delete1(rbTree *tree, rbNode *node)
     #ifdef RB_INPUT_CHECK   
     if(!tree)
     {
-        DEBUG_PRINT("Error, must pass a not null tree pointer!");
-        return;
-    }
-    if(!node)
-    {
-        DEBUG_PRINT("Error, must pass a not null tree pointer!");
+        DEBUG_PRINT("RB_Delete1: Error, must pass a not null tree pointer!\n");
         return;
     }
     #endif
+
+    if(!node)
+    {
+        DEBUG_PRINT("RB_Delete1: Error, must pass a not null node pointer!\n");
+        return;
+    }
 
     rbNode *x = NULL, *y = NULL, *xParent = NULL;
     enum RB_COLOR yColor = node->color; 
@@ -513,6 +516,7 @@ void rb_Delete1(rbTree *tree, rbNode *node)
     if(yColor == BLACK)
         irb_RemoveFixup(tree, x, xParent);
 
+    DEBUG_PRINT("RB_Delete1: Deleted %d\n", node->data);
     free(node);
 }
 
