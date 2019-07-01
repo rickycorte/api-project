@@ -1,4 +1,4 @@
-#if DEBUG
+#ifdef DEBUG
 
 #include <stdint.h>
 #if defined(__linux)
