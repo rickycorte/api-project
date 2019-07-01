@@ -11,6 +11,7 @@
 
 
 #include "hashtable.c"
+#include "bench.c"
 
 
 int main(int argc, char** argv)
