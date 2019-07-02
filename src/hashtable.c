@@ -35,6 +35,50 @@ typedef struct s_hashtable
 } hashTable;
 
 
+
+
+/****************************************
+ * DEBUG
+ ****************************************/
+
+#ifdef DEBUG
+
+/**
+ * Print table status
+ * 
+ * @param table table to print
+ */
+void ht_print_status(hashTable *table)
+{
+    if(!table) return;
+
+    int display = 0;
+    for(int i = 0; i < table->size; i++)
+    {
+        if(table->internal[i] != NULL) display++;
+    }
+
+    DEBUG_PRINT("Showing %d items of %i:\n", display, table->size);
+    DEBUG_PRINT("   hash   |  bucket");
+
+    for(int i = 0; i < table->size; i++)
+    {
+        htItem *itr = table->internal[i];
+        DEBUG_PRINT("%9d | ");
+        while (itr)
+        {
+            itr = itr->next;
+            DEBUG_PRINT("x");
+        } 
+        DEBUG_PRINT("\n");
+    }
+}
+
+
+#endif
+
+
+
 /****************************************
  * INIT
  ****************************************/
@@ -63,7 +107,7 @@ static inline void ht_init1(hashTable *table, int size)
         return;
     }
     #endif
-    memset(table->internal, 0, sizeof(htItem) * size);
+    memset(table->internal, 0, sizeof(htItemArray) * size);
     table->size = size;
     table->worstLookup = 0;
     table->worstLookupCount = 0;
@@ -200,6 +244,11 @@ void ht_insert2(hashTable *table, char *key)
 
 static inline void ht_resize(hashTable *table)
 {
+    #ifdef DEBUG
+    DEBUG_PRINT("Before resize:\n");
+    ht_print_status(table);
+    #endif
+    
     int oldsize = table->size;
     htItemArray *old_data = table->internal;
 
@@ -331,6 +380,7 @@ void ht_remove(hashTable *table, char* key)
         if(strcmp(itr->data, key) == 0)
         {
             table->internal[hash] = itr->next;
+            free(itr->data);
             free(itr);
         }
         else
@@ -385,43 +435,3 @@ void ht_clean(hashTable *table)
     free(table->internal);
     free(table);
 }
-
-/****************************************
- * DEBUG
- ****************************************/
-
-#ifdef DEBUG
-
-/**
- * Print table status
- * 
- * @param table table to print
- */
-void ht_print_status(hashTable *table)
-{
-    if(!table) return;
-
-    int display = 0;
-    for(int i = 0; i < table->size; i++)
-    {
-        if(table->internal[i] != NULL) display++;
-    }
-
-    DEBUG_PRINT("Showing %d items of %i:\n", display, table->size);
-    DEBUG_PRINT("   hash   |  bucket");
-
-    for(int i = 0; i < table->size; i++)
-    {
-        htItem *itr = table->internal[i];
-        DEBUG_PRINT("%9d | ");
-        while (itr)
-        {
-            itr = itr->next;
-            DEBUG_PRINT("x");
-        } 
-        DEBUG_PRINT("\n");
-    }
-}
-
-
-#endif

@@ -22,25 +22,29 @@
  * 
  * @param is stream where read is done
  * @param command array of char pointers (dim should be 4 to fit biggest command)
+ * @param size command item count
+ * @param max_size max command size
+ * 
+ * @return 0 on error, 1 on success
  */
-static inline void get_formatted_input(FILE *is, char **command, int *size)
+static inline int get_formatted_input(FILE *is, char **command, int *size, int max_size)
 {
     #ifdef DEBUG
     if(!is)
     {
         DEBUG_PRINT("get_formatted_input: Can't read from a null stream");
-        return;
+        return 0;
     }
     if(!command)
     {
         DEBUG_PRINT("get_formatted_input: Can't save on a null command array");
-        return;
+        return 0;
     }
     #endif
 
     char c;
 
-    char *data = (char *)malloc(7);;
+    char *data = (char *)malloc(7);
     int allocated_size = 7;
 
     int cmd_part = 0;
@@ -59,6 +63,18 @@ static inline void get_formatted_input(FILE *is, char **command, int *size)
             allocated_size = 0;
             insert_index = 0;
             continue;
+
+            //TODO: check if i can omit this check
+            if(cmd_part > max_size)
+            {
+                DEBUG_PRINT("get_formatted_input: Broken command, %d max_size exceded", max_size);
+                for(int i = 0 ; i < cmd_part; i++)
+                {
+                    free(data);
+                }
+                return 0;
+            }
+
         }
 
         if(c == '\n')
@@ -74,14 +90,43 @@ static inline void get_formatted_input(FILE *is, char **command, int *size)
 
         data[insert_index] = c;
         insert_index++;
-
     }
 
     //final assign at line end
     command[cmd_part] = data;
     data[insert_index+1] = '\0';
     *size = cmd_part + 1; 
+    return 1;
 }
+
+
+
+/**
+ * add a new entity to the hashtable
+ * 
+ * @param table hastable where to insert
+ * @param command source where grab data (unused parts are freed except command[0])
+ */
+static inline void add_entity(hashTable *table, char **command)
+{
+    if(!ht_hasKey(table, command[1]))
+        ht_insert2(table, command[1]);
+}
+
+
+/**
+ * remove a entity from the hashtable
+ * 
+ * @param table hastable where to remove
+ * @param command source where grab data (unused parts are freed except command[0])
+ */
+static inline void remove_entity(hashTable *table, char **command)
+{
+    ht_remove(table, command[1]);
+    
+    //TODO: add relation delete
+}
+
 
 
 int main(int argc, char** argv)
@@ -89,26 +134,91 @@ int main(int argc, char** argv)
     char *command[4];
     int cmd_sz = 0;
 
+    int exit_loop = 0;
+
+    hashTable *entities_table;
+    entities_table = ht_init2(entities_table);
+
     do
     {
-       get_formatted_input(stdin, command, &cmd_sz);
-       DEBUG_PRINT("Got: ");
-       for(int i = 0; i < cmd_sz; i++)
+       if(get_formatted_input(stdin, command, &cmd_sz, 4))
        {
-           DEBUG_PRINT("%s ",command[i]);
-           if(strcmp(command[0], "end") != 0)
-           {
-               free(command[i]);
-           }
-       }
-       DEBUG_PRINT("\n");
-       
 
-    } while (strcmp(command[0], "end") != 0); 
-    for(int i = 0; i < cmd_sz; i++)
-    {
-        free(command[i]);
-    }
+/*
+            if(strcmp(command[0], "addent") == 0)
+            {
+
+            }
+            else if(strcmp(command[0], "delent") == 0)
+            {
+
+            }
+            else if(strcmp(command[0], "addrel") == 0)
+            {
+
+            }
+            else if(strcmp(command[0], "delrel") == 0)
+            {
+
+            }
+            else if(strcmp(command[0], "report") == 0)
+            {
+
+            }
+            else if(strcmp(command[0], "end") == 0)
+            {
+                exit_loop = 1;
+
+            }
+*/
+
+        //assume input is ok
+        if(command[0][0] == 'a')
+        {
+            if(command[0][3] == 'e')
+            {
+                //addent
+                add_entity(entities_table, command);
+            }
+            else if(command[0][3] == 'r')
+            {
+                //addrel
+            }
+
+            continue;
+        }
+
+        if(command[0][0] == 'd')
+        {
+            if(command[0][3] == 'e')
+            {
+                //delent
+                remove_entity(entities_table, command);
+            }
+            else if(command[0][3] == 'r')
+            {
+                //delrel
+            }
+            continue;
+        }
+
+        if(command[0][0] == 'r')
+        {
+            continue;
+        }
+
+        if(command[0][0] == 'e')
+        {         
+            exit_loop = 1;
+        }
+
+        free(command[0]);
+
+       }     
+
+    } while (!exit_loop);
+
+    ht_clean(entities_table);
 
     return 0;
 }
