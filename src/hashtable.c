@@ -312,20 +312,20 @@ static inline void ht_resize(hashTable *table)
  * 
  * @param table pointer to table where to find key
  * @param key key to search
- * @return true if found, false otherwise
+ * @return htItem pointer of found element, null if not found
  */
-int ht_hasKey(hashTable *table, char* key)
+htItem* ht_hasKey(hashTable *table, char* key)
 {
     #ifdef DEBUG
     if(!key)
     {
         DEBUG_PRINT("ht_search: Can't search a NULL key\n");
-        return 0;
+        return NULL;
     }
     if(!table)
     {
         DEBUG_PRINT("ht_search: Can't search a null table\n");
-        return 0;
+        return NULL;
     }
     #endif
 
@@ -344,7 +344,7 @@ int ht_hasKey(hashTable *table, char* key)
             }
             #endif
 
-            if(strcmp(key, itr->data) == 0) return 1;
+            if(strcmp(key, itr->data) == 0) return itr;
             itr = itr->next;
             lookup++;
         }

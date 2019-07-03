@@ -12,7 +12,7 @@
 
 #include "hashtable.c"
 #include "bench.c"
-
+#include "relationArr.c"
 
 /**
  * Get formatted input from stream
