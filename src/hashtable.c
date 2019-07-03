@@ -6,7 +6,7 @@
 #define HT_HASH_PRIME 31
 
 #define HT_MAX_WORSTCASELOOKUP 10
-#define HT_MAX_WORSTCASELOOKUPCOUNT 5
+#define HT_MAX_WORSTCASELOOKUPCOUNT 20
 
 
 
@@ -90,7 +90,7 @@ void ht_print_status(hashTable *table)
         #endif
     }
 
-    DEBUG_PRINT("Element count: %d, avg load: %.2f, worst load: %d\n", elem_count, ((double)elem_count) /table->size, worst_load);
+    DEBUG_PRINT("Element count: %d, avg load: %.2f, worst load: %d\n", elem_count, ((double)elem_count) / display, worst_load);
 }
 
 
@@ -355,8 +355,9 @@ int ht_hasKey(hashTable *table, char* key)
     {
         if(lookup > HT_MAX_WORSTCASELOOKUP)
         {
-            ht_resize(table);
             DEBUG_PRINT("ht_search: Resizing table due to max lookup hit\n");
+            ht_resize(table);
+            DEBUG_PRINT("\n");
         }
         else
         {
@@ -364,8 +365,9 @@ int ht_hasKey(hashTable *table, char* key)
             table->worstLookupCount++;
             if(table->worstLookupCount > HT_MAX_WORSTCASELOOKUPCOUNT)
             {
-                ht_resize(table);
                 DEBUG_PRINT("ht_search: Resizing table due to max lookup count hit\n");
+                ht_resize(table);
+                DEBUG_PRINT("\n");
             }
         }
 
