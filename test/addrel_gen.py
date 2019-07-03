@@ -15,6 +15,8 @@ def progressBar(value, endvalue, bar_length=20):
 
 size = 100000
 
+random_del = False
+
 entities = []
 
 count = 0
@@ -33,7 +35,7 @@ while count < size:
     progressBar(count, size)
 
 
-size = 1000000
+size = 1000
 
 print("Wrinting file...")
 with open("test.txt", "w") as fd:
@@ -41,7 +43,7 @@ with open("test.txt", "w") as fd:
     while i < size:
         val = random.randint(0, 100)
 
-        if val < 75 :
+        if val < 75 or not random_del:
             rsz = random.randint(0, len(entities)-1)
             st = "addent " + str(entities[rsz]) + "\n" 
             fd.write(st)
@@ -52,5 +54,7 @@ with open("test.txt", "w") as fd:
 
         i += 1    
         progressBar(i, size)
+    
+    fd.write("end")
 
 print("Done")

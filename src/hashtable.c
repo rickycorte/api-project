@@ -34,8 +34,7 @@ typedef struct s_hashtable
     int worstLookupCount; // number of times that worstlookup is done
 } hashTable;
 
-
-
+// #define VERBODE_DEBUG
 
 /****************************************
  * DEBUG
@@ -58,20 +57,40 @@ void ht_print_status(hashTable *table)
         if(table->internal[i] != NULL) display++;
     }
 
-    DEBUG_PRINT("Showing %d items of %i:\n", display, table->size);
-    DEBUG_PRINT("   hash   |  bucket");
+    int elem_count = 0,templd = 0, worst_load = 0;
+
+    DEBUG_PRINT("Bucket status: %d used of %i:\n", display, table->size);
+
+    #ifdef VERBOSE_DEBUG
+    DEBUG_PRINT("   hash   |  bucket\n");
+    #endif
 
     for(int i = 0; i < table->size; i++)
     {
         htItem *itr = table->internal[i];
-        DEBUG_PRINT("%9d | ");
+
+        #ifdef VERBOSE_DEBUG
+        DEBUG_PRINT("%9d | ",i);
+        #endif
+        templd = 0;
         while (itr)
         {
             itr = itr->next;
+            #ifdef VERBOSE_DEBUG
             DEBUG_PRINT("x");
+            #endif
+            elem_count++;
+            templd++;
+
         } 
+        if(templd > worst_load) worst_load = templd;
+
+        #ifdef VERBOSE_DEBUG
         DEBUG_PRINT("\n");
+        #endif
     }
+
+    DEBUG_PRINT("Element count: %d, avg load: %.2f, worst load: %d\n", elem_count, ((double)elem_count) /table->size, worst_load);
 }
 
 
@@ -94,7 +113,7 @@ static inline void ht_init1(hashTable *table, int size)
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate new table");
+        DEBUG_PRINT("ht_init: Unable to allocate new table\n");
         return;
     }
     #endif
@@ -103,7 +122,7 @@ static inline void ht_init1(hashTable *table, int size)
     #ifdef DEBUG
     if(!table->internal)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate internal table data");
+        DEBUG_PRINT("ht_init: Unable to allocate internal table data\n");
         return;
     }
     #endif
@@ -124,7 +143,7 @@ static inline hashTable* ht_init2()
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate new table");
+        DEBUG_PRINT("ht_init: Unable to allocate new table\n");
         return NULL;
     }
     #endif
@@ -181,12 +200,12 @@ static inline void ht_insert1(hashTable *table, htItem *item)
     #ifdef DEBUG
     if(!item)
     {
-        DEBUG_PRINT("ht_insert: Can't insert NULL item");
+        DEBUG_PRINT("ht_insert: Can't insert NULL item\n");
         return NULL;
     }
     if(!table)
     {
-        DEBUG_PRINT("ht_insert: Unable to allocate internal table data");
+        DEBUG_PRINT("ht_insert: Unable to allocate internal table data\n");
         return NULL;
     }
     #endif
@@ -217,7 +236,7 @@ void ht_insert2(hashTable *table, char *key)
     #ifdef DEBUG
     if(!key)
     {
-        DEBUG_PRINT("ht_insert: Can't hash a NULL key");
+        DEBUG_PRINT("ht_insert: Can't hash a NULL key\n");
         return NULL;
     }
     #endif
@@ -227,7 +246,7 @@ void ht_insert2(hashTable *table, char *key)
     #ifdef DEBUG
     if(!item)
     {
-        DEBUG_PRINT("ht_insert: Can't allocate new htItem");
+        DEBUG_PRINT("ht_insert: Can't allocate new htItem\n");
         return NULL;
     }
     #endif
@@ -257,21 +276,29 @@ static inline void ht_resize(hashTable *table)
     #ifdef DEBUG
     if(!table->internal)
     {
-        DEBUG_PRINT("ht_resize: Unable to allocate new table internal data");
+        DEBUG_PRINT("ht_resize: Unable to allocate new table internal data\n");
         return;
     }
     #endif
 
     for(int i = 0; i < oldsize; i++)
     {
-        htItem *itr = old_data[i];
+        htItem  *temp = NULL, *itr = old_data[i];
+
         while(itr != NULL)
         {
-            ht_insert1(table, itr);
+            temp = itr;
+            itr = itr->next;
+            ht_insert1(table, temp);
         }
     }
 
     free(old_data);
+
+    #ifdef DEBUG
+    DEBUG_PRINT("After resize:\n");
+    ht_print_status(table);
+    #endif
 }
 
 
@@ -292,12 +319,12 @@ int ht_hasKey(hashTable *table, char* key)
     #ifdef DEBUG
     if(!key)
     {
-        DEBUG_PRINT("ht_search: Can't search a NULL key");
+        DEBUG_PRINT("ht_search: Can't search a NULL key\n");
         return 0;
     }
     if(!table)
     {
-        DEBUG_PRINT("ht_search: Can't search a null table");
+        DEBUG_PRINT("ht_search: Can't search a null table\n");
         return 0;
     }
     #endif
@@ -310,6 +337,13 @@ int ht_hasKey(hashTable *table, char* key)
         htItem *itr = table->internal[hash];
         while(itr)
         {
+            #ifdef DEBUG
+            if(!itr->data)
+            {
+                DEBUG_PRINT("Ohu now we lost data at %p", itr);
+            }
+            #endif
+
             if(strcmp(key, itr->data) == 0) return 1;
             itr = itr->next;
             lookup++;
@@ -322,7 +356,7 @@ int ht_hasKey(hashTable *table, char* key)
         if(lookup > HT_MAX_WORSTCASELOOKUP)
         {
             ht_resize(table);
-            DEBUG_PRINT("ht_search: Resizing table due to max lookup hit");
+            DEBUG_PRINT("ht_search: Resizing table due to max lookup hit\n");
         }
         else
         {
@@ -331,7 +365,7 @@ int ht_hasKey(hashTable *table, char* key)
             if(table->worstLookupCount > HT_MAX_WORSTCASELOOKUPCOUNT)
             {
                 ht_resize(table);
-                DEBUG_PRINT("ht_search: Resizing table due to max lookup count hit");
+                DEBUG_PRINT("ht_search: Resizing table due to max lookup count hit\n");
             }
         }
 
@@ -356,48 +390,53 @@ void ht_remove(hashTable *table, char* key)
     #ifdef DEBUG
     if(!key)
     {
-        DEBUG_PRINT("ht_remove: Can't search a NULL key");
+        DEBUG_PRINT("ht_remove: Can't search a NULL key\n");
         return;
     }
     if(!table)
     {
-        DEBUG_PRINT("ht_remove: Can't search a null table");
+        DEBUG_PRINT("ht_remove: Can't search a null table\n");
         return;
     }
     #endif
 
     int hash = ht_hash(key, table->size);
+    htItem *del = NULL, *itr = table->internal[hash];
 
-    if(table->internal[hash])
-    {
-        htItem *itr = table->internal[hash];
-
-        if(!itr) 
-        {
-            DEBUG_PRINT("ht_remove: Trying to delete not existent key for %s", key);
-            return; // not found   
-        }   
+    if(itr)
+    {       
         if(strcmp(itr->data, key) == 0)
         {
+            del = itr;
             table->internal[hash] = itr->next;
-            free(itr->data);
-            free(itr);
         }
         else
         {
             while(itr->next)
             {             
-                if(strcmp(key, itr->next->data) == 0)
+                if(strcmp(key, itr->data) == 0)
                 {
                     //found match
-                    itr->next = itr->next->next;
-                    free(itr->next);
+                    del = itr->next;
+                    itr->next = del->next;
                     break;
                 }
                 itr = itr->next;
             }
         }
+        if(del)
+        {
+            free(del->data);
+            free(del);
+        }
     }
+    #ifdef DEBUG
+    else
+    {
+        //not found
+        //DEBUG_PRINT("ht_remove: Trying to delete not existent key for %s\n", key);
+    }
+    #endif
 
 }
 
@@ -415,7 +454,7 @@ void ht_clean(hashTable *table)
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_clean: Can't delete a null table");
+        DEBUG_PRINT("ht_clean: Can't delete a null table\n");
         return;
     }
     #endif

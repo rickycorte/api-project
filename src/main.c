@@ -56,7 +56,7 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
         {
             //command part is ended, so we store it in cmd array and get ready to read a parameter
             command[cmd_part] = data;
-            data[insert_index+1] = '\0';
+            data[insert_index] = '\0';
 
             cmd_part++;
             data = NULL;
@@ -70,8 +70,9 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
                 DEBUG_PRINT("get_formatted_input: Broken command, %d max_size exceded", max_size);
                 for(int i = 0 ; i < cmd_part; i++)
                 {
-                    free(data);
+                    free(command[i]);                   
                 }
+                free(data);
                 return 0;
             }
 
@@ -94,7 +95,7 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
 
     //final assign at line end
     command[cmd_part] = data;
-    data[insert_index+1] = '\0';
+    data[insert_index] = '\0';
     *size = cmd_part + 1; 
     return 1;
 }
@@ -110,7 +111,15 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
 static inline void add_entity(hashTable *table, char **command)
 {
     if(!ht_hasKey(table, command[1]))
+    {
         ht_insert2(table, command[1]);
+        //DEBUG_PRINT("Added %s\n", command[1]);
+    }
+    else
+    {
+        //DEBUG_PRINT("Duplicate key for %s\n", command[1]);
+        free(command[1]);
+    }
 }
 
 
@@ -123,8 +132,10 @@ static inline void add_entity(hashTable *table, char **command)
 static inline void remove_entity(hashTable *table, char **command)
 {
     ht_remove(table, command[1]);
+    //DEBUG_PRINT("Removed %s\n", command[1]);
     
     //TODO: add relation delete
+    free(command[1]);
 }
 
 
@@ -136,12 +147,24 @@ int main(int argc, char** argv)
 
     int exit_loop = 0;
 
+    #ifdef DEBUG
+    double start_tm = ns();
+    #endif
+
     hashTable *entities_table;
     entities_table = ht_init2(entities_table);
 
+    #ifdef DEBUG
+    FILE *fl = fopen("test.txt","r");
+    if(!fl) fl= stdin;
+    #else
+    FILE *fl = stdin
+    #endif
+    
+
     do
     {
-       if(get_formatted_input(stdin, command, &cmd_sz, 4))
+       if(get_formatted_input(fl, command, &cmd_sz, 4))
        {
 
 /*
@@ -185,10 +208,7 @@ int main(int argc, char** argv)
                 //addrel
             }
 
-            continue;
-        }
-
-        if(command[0][0] == 'd')
+        } else if(command[0][0] == 'd')
         {
             if(command[0][3] == 'e')
             {
@@ -199,18 +219,26 @@ int main(int argc, char** argv)
             {
                 //delrel
             }
-            continue;
         }
-
-        if(command[0][0] == 'r')
+        else if(command[0][0] == 'r')
         {
-            continue;
-        }
 
-        if(command[0][0] == 'e')
+        }
+        else if(command[0][0] == 'e')
         {         
             exit_loop = 1;
         }
+        #ifdef DEBUG
+        else
+        {
+            DEBUG_PRINT("%s: command not found\n", command[0]);
+            for(int i =0; i < cmd_sz; i++)
+            {
+                free(command[i]);
+            }
+            continue;
+        }
+        #endif
 
         free(command[0]);
 
@@ -218,7 +246,17 @@ int main(int argc, char** argv)
 
     } while (!exit_loop);
 
+    DEBUG_PRINT("\n\n");
+    ht_print_status(entities_table);
+
     ht_clean(entities_table);
+
+    #ifdef DEBUG
+    if(fl) fclose(fl);
+
+    double msTm = (ns() - start_tm)/1000000;
+    printf("Execution time: %.2fms ~ %.2fs\n", msTm, msTm/1000);
+    #endif
 
     return 0;
 }
