@@ -14,6 +14,11 @@
 #include "bench.c"
 #include "relationArr.c"
 
+
+/****************************************
+ * INPUT
+ ****************************************/
+
 /**
  * Get formatted input from stream
  * Format specified in minnezza/ProvaFinale2019.pdf (pag 11)
@@ -101,6 +106,9 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
 }
 
 
+/****************************************
+ * ENTITIES 
+ ****************************************/
 
 /**
  * add a new entity to the hashtable
@@ -140,19 +148,104 @@ static inline void remove_entity(hashTable *table, char **command)
 
 
 
+/****************************************
+ * RELATIONS
+ ****************************************/
+
+/**
+ * Add a relation if possible
+ * 
+ * @param entities entities hash table
+ * @param relNames relations array
+ * @param // relations hash table
+ * @param command source where grab data (unused parts are freed except command[0])
+ */
+static inline void add_relation(hashTable *entities, relationArray *relNames, char **command)
+{
+    htItem *source = ht_hasKey(entities, command[1]);
+    htItem *dest = ht_hasKey(entities, command[2]);
+    free(command[1]);
+    free(command[2]);
+    if(source && dest)
+    {
+        //check if the relation has just been created
+        char *rel = ra_find2(relNames, command[3]);
+        if(rel)
+        {
+            free(command[3]);
+        }
+        else
+        {
+            ra_insert(relNames, command[3]);
+            rel = command[3];
+        }
+
+        //insert relelation in rel table
+
+    }
+    else
+    {
+        free(command[3]);
+    }
+}
+
+
+/**
+ * Delete a relation if possible
+ * 
+ * @param entities entities hash table
+ * @param relNames relations array
+ * @param // relations hash table
+ * @param command source where grab data (unused parts are freed except command[0])
+ */
+static inline void remove_relation(hashTable *entities, relationArray *relNames, char **command)
+{
+    htItem *source = ht_hasKey(entities, command[1]);
+    htItem *dest = ht_hasKey(entities, command[2]);
+    free(command[1]);
+    free(command[2]);
+    if(source && dest)
+    {
+        //check if the relation has just been created
+        char *rel = ra_find2(relNames, command[3]);
+
+        //search and delete relation (not in)
+        if(rel)
+        {
+
+        }
+        // no relation found
+
+    }
+    
+    free(command[3]);
+}
+
+
+/****************************************
+ * MAIN
+ ****************************************/
+
 int main(int argc, char** argv)
 {
-    char *command[4];
-    int cmd_sz = 0;
-
-    int exit_loop = 0;
 
     #ifdef DEBUG
     double start_tm = ns();
     #endif
 
+    //init input data
+    char *command[4];
+    int cmd_sz = 0;
+
+    int exit_loop = 0;
+
+    //init entity table
     hashTable *entities_table;
     entities_table = ht_init2(entities_table);
+
+    //init relation array
+    relationArray relation_names;
+    ra_init(&relation_names);
 
     #ifdef DEBUG
     FILE *fl = fopen("test.txt","r");
@@ -206,6 +299,7 @@ int main(int argc, char** argv)
             else if(command[0][3] == 'r')
             {
                 //addrel
+                add_relation(entities_table, &relation_names, command);
             }
 
         } else if(command[0][0] == 'd')
@@ -218,11 +312,12 @@ int main(int argc, char** argv)
             else if(command[0][3] == 'r')
             {
                 //delrel
+                 remove_relation(entities_table, &relation_names, command);
             }
         }
         else if(command[0][0] == 'r')
         {
-
+            //report
         }
         else if(command[0][0] == 'e')
         {         
@@ -250,6 +345,8 @@ int main(int argc, char** argv)
     ht_print_status(entities_table);
 
     ht_clean(entities_table);
+
+    ra_clean(&relation_names);
 
     #ifdef DEBUG
     if(fl) fclose(fl);
