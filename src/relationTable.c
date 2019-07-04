@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HT_HASHTABLE_SIZE_DEFAULT 37
-#define HT_HASH_PRIME 31
+#define RT_HASHTABLE_SIZE_DEFAULT 37
+#define RT_HASH_PRIME 31
 
-#define HT_MAX_WORSTCASELOOKUP 10
-#define HT_MAX_WORSTCASELOOKUPCOUNT 20
+#define RT_MAX_WORSTCASELOOKUP 10
+#define RT_MAX_WORSTCASELOOKUPCOUNT 20
 
 
 
@@ -15,24 +15,27 @@
  ****************************************/
 
 //hash table item
-typedef struct s_htItem
+typedef struct s_rtItem
 {
-    char *data;
-    struct s_htItem *next;
-} htItem;
+    htItem *from;
+    htItem *to;
+    char *rel;
 
-typedef htItem* htItemArray;
+    struct s_rtItem *next;
+} rtItem;
+
+typedef rtItem* rtItemArray;
 
 //hash table structure
-typedef struct s_hashtable
+typedef struct s_relationtable
 {
-    htItemArray *internal; // array of htItem pointers
+    rtItemArray *internal; // array of rtItem pointers
     int size; // size of internal
 
     //rebalancing factors
     int worstLookup; //longest lookup done on the table
     int worstLookupCount; // number of times that worstlookup is done
-} hashTable;
+} relationTable;
 
 // #define VERBODE_DEBUG
 
@@ -47,7 +50,7 @@ typedef struct s_hashtable
  * 
  * @param table table to print
  */
-void ht_print_status(hashTable *table)
+void rt_print_status(relationTable *table)
 {
     if(!table) return;
 
@@ -67,7 +70,7 @@ void ht_print_status(hashTable *table)
 
     for(int i = 0; i < table->size; i++)
     {
-        htItem *itr = table->internal[i];
+        rtItem *itr = table->internal[i];
 
         #ifdef VERBOSE_DEBUG
         DEBUG_PRINT("%9d | ",i);
@@ -90,7 +93,7 @@ void ht_print_status(hashTable *table)
         #endif
     }
 
-    DEBUG_PRINT("Element count: %d, avg load: %.2f, worst load: %d\n", elem_count, ((double)elem_count) / display, worst_load);
+    DEBUG_PRINT("RT: Element count: %d, avg load: %.2f, worst load: %d\n", elem_count, ((double)elem_count) / display, worst_load);
 }
 
 
@@ -108,47 +111,47 @@ void ht_print_status(hashTable *table)
  * @param size table size
  * @return pointer to allocated table, NULL on error
  */
-static inline void ht_init1(hashTable *table, int size)
+static inline void rt_init1(relationTable *table, int size)
 {
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate new table\n");
+        DEBUG_PRINT("rt_init: Unable to allocate new table\n");
         return;
     }
     #endif
 
-    table->internal = (htItemArray *)malloc(sizeof(htItemArray) * size);
+    table->internal = (rtItemArray *)malloc(sizeof(rtItemArray) * size);
     #ifdef DEBUG
     if(!table->internal)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate internal table data\n");
+        DEBUG_PRINT("rt_init: Unable to allocate internal table data\n");
         return;
     }
     #endif
-    memset(table->internal, 0, sizeof(htItemArray) * size);
+    memset(table->internal, 0, sizeof(rtItemArray) * size);
     table->size = size;
     table->worstLookup = 0;
     table->worstLookupCount = 0;
 }
 
 /**
- * Create a new hashtable
+ * Create a new hasrtable
  * 
  * @return pointer to allocated table, NULL on error
  */
-static inline hashTable* ht_init2()
+static inline relationTable* rt_init2()
 {
-    hashTable *table = (hashTable *)malloc(sizeof(hashTable));
+    relationTable *table = (relationTable *)malloc(sizeof(relationTable));
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_init: Unable to allocate new table\n");
+        DEBUG_PRINT("rt_init: Unable to allocate new table\n");
         return NULL;
     }
     #endif
 
-    ht_init1(table, HT_HASHTABLE_SIZE_DEFAULT);
+    rt_init1(table, RT_HASHTABLE_SIZE_DEFAULT);
 
     return table;
 }
@@ -165,52 +168,38 @@ static inline hashTable* ht_init2()
  * 
  * @return key hash
  */
-static inline int ht_hash(char *key, int size)
+static inline int rt_hash(htItem *from, htItem* to, char *rel, int size)
 {
-    #ifdef DEBUG
-    if(!key)
-    {
-        DEBUG_PRINT("ht_hash: Can't hash a NULL key");
-        return 0;
-    }
-    #endif
-
-    unsigned long res = *key;
-    key++;
-
-    unsigned long pow = HT_HASH_PRIME;
-
-    for(int i = 1; *key != '\0'; key++, i++)
-    {
-        res += (*key) * pow;
-        pow *= HT_HASH_PRIME;
-    }
-    return res % size;
+    long x = (long)from * (long)to *(long)rel;
+    x = ((x >> 32) ^ x) * 0x45d9f3b;
+    x = ((x >> 32) ^ x) * 0x45d9f3b;
+    x = (x >> 32) ^ x;
+    return x %size;
 }
 
 
 /**
  * Insert key in table (no duplicate check)
  * 
- * @param table hashtable where insert is made
+ * @param table hasrtable where insert is made
  * @param item item to insert
  */
-static inline void ht_insert1(hashTable *table, htItem *item)
+static inline void rt_insert1(relationTable *table, rtItem *item)
 {
     #ifdef DEBUG
     if(!item)
     {
-        DEBUG_PRINT("ht_insert: Can't insert NULL item\n");
+        DEBUG_PRINT("rt_insert: Can't insert NULL item\n");
         return;
     }
     if(!table)
     {
-        DEBUG_PRINT("ht_insert: Unable to allocate internal table data\n");
+        DEBUG_PRINT("rt_insert: Unable to allocate internal table data\n");
         return;
     }
     #endif
 
-    int hash = ht_hash(item->data, table->size);
+    int hash = rt_hash(item->from, item->to, item->rel, table->size);
 
     if(table->internal[hash])
     {
@@ -228,32 +217,26 @@ static inline void ht_insert1(hashTable *table, htItem *item)
 /**
  * Insert key in table (no duplicate check)
  * 
- * @param table hashtable where insert is made
+ * @param table hasrtable where insert is made
  * @param key key to insert
  */
-void ht_insert2(hashTable *table, char *key)
+void rt_insert2(relationTable *table, htItem* from, htItem* to, char *rel)
 {
-    #ifdef DEBUG
-    if(!key)
-    {
-        DEBUG_PRINT("ht_insert: Can't hash a NULL key\n");
-        return;
-    }
-    #endif
-
-    htItem *item = (htItem *)malloc(sizeof(htItem));
+    rtItem *item = (rtItem *)malloc(sizeof(rtItem));
 
     #ifdef DEBUG
     if(!item)
     {
-        DEBUG_PRINT("ht_insert: Can't allocate new htItem\n");
+        DEBUG_PRINT("rt_insert: Can't allocate new rtItem\n");
         return;
     }
     #endif
 
-    item->data = key;
+    item->from = from;
+    item->to = to;
+    item->rel = rel;
 
-    ht_insert1(table, item);
+    rt_insert1(table, item);
 }
 
 
@@ -261,35 +244,35 @@ void ht_insert2(hashTable *table, char *key)
  * RESIZE
  ****************************************/
 
-static inline void ht_resize(hashTable *table)
+static inline void rt_resize(relationTable *table)
 {
     #ifdef DEBUG
     DEBUG_PRINT("Before resize:\n");
-    ht_print_status(table);
+    rt_print_status(table);
     #endif
     
     int oldsize = table->size;
-    htItemArray *old_data = table->internal;
+    rtItemArray *old_data = table->internal;
 
-    ht_init1(table, table->size *2);
+    rt_init1(table, table->size *2);
 
     #ifdef DEBUG
     if(!table->internal)
     {
-        DEBUG_PRINT("ht_resize: Unable to allocate new table internal data\n");
+        DEBUG_PRINT("rt_resize: Unable to allocate new table internal data\n");
         return;
     }
     #endif
 
     for(int i = 0; i < oldsize; i++)
     {
-        htItem  *temp = NULL, *itr = old_data[i];
+        rtItem  *temp = NULL, *itr = old_data[i];
 
         while(itr != NULL)
         {
             temp = itr;
             itr = itr->next;
-            ht_insert1(table, temp);
+            rt_insert1(table, temp);
         }
     }
 
@@ -297,7 +280,7 @@ static inline void ht_resize(hashTable *table)
 
     #ifdef DEBUG
     DEBUG_PRINT("After resize:\n");
-    ht_print_status(table);
+    rt_print_status(table);
     #endif
 }
 
@@ -312,39 +295,27 @@ static inline void ht_resize(hashTable *table)
  * 
  * @param table pointer to table where to find key
  * @param key key to search
- * @return htItem pointer of found element, null if not found
+ * @return rtItem pointer of found element, null if not found
  */
-htItem* ht_hasKey(hashTable *table, char* key)
+rtItem* rt_hasKey(relationTable *table, htItem* from, htItem* to, char *rel)
 {
     #ifdef DEBUG
-    if(!key)
-    {
-        DEBUG_PRINT("ht_search: Can't search a NULL key\n");
-        return NULL;
-    }
     if(!table)
     {
-        DEBUG_PRINT("ht_search: Can't search a null table\n");
+        DEBUG_PRINT("rt_search: Can't search a null table\n");
         return NULL;
     }
     #endif
 
-    int hash = ht_hash(key, table->size);
+    int hash = rt_hash(from, to, rel, table->size);
     int lookup = 0;
 
     if(table->internal[hash])
     {
-        htItem *itr = table->internal[hash];
+        rtItem *itr = table->internal[hash];
         while(itr)
         {
-            #ifdef DEBUG
-            if(!itr->data)
-            {
-                DEBUG_PRINT("Ohu now we lost data at %p", itr);
-            }
-            #endif
-
-            if(strcmp(key, itr->data) == 0) return itr;
+            if(itr->from == from && itr->to == to && itr->rel == rel) return itr;
             itr = itr->next;
             lookup++;
         }
@@ -353,20 +324,20 @@ htItem* ht_hasKey(hashTable *table, char* key)
     //autoresize
     if(lookup >= table->worstLookup)
     {
-        if(lookup > HT_MAX_WORSTCASELOOKUP)
+        if(lookup > RT_MAX_WORSTCASELOOKUP)
         {
-            DEBUG_PRINT("ht_search: Resizing table due to max lookup hit\n");
-            ht_resize(table);
+            DEBUG_PRINT("rt_search: Resizing table due to max lookup hit\n");
+            rt_resize(table);
             DEBUG_PRINT("\n");
         }
         else
         {
             table->worstLookupCount = lookup;
             table->worstLookupCount++;
-            if(table->worstLookupCount > HT_MAX_WORSTCASELOOKUPCOUNT)
+            if(table->worstLookupCount > RT_MAX_WORSTCASELOOKUPCOUNT)
             {
-                DEBUG_PRINT("ht_search: Resizing table due to max lookup count hit\n");
-                ht_resize(table);
+                DEBUG_PRINT("rt_search: Resizing table due to max lookup count hit\n");
+                rt_resize(table);
                 DEBUG_PRINT("\n");
             }
         }
@@ -387,27 +358,22 @@ htItem* ht_hasKey(hashTable *table, char* key)
  * @param table pointer to table where to find key
  * @param key key to search and delete
  */
-void ht_remove(hashTable *table, char* key)
+void rt_remove(relationTable *table, htItem* from, htItem* to, char *rel)
 {
     #ifdef DEBUG
-    if(!key)
-    {
-        DEBUG_PRINT("ht_remove: Can't search a NULL key\n");
-        return;
-    }
     if(!table)
     {
-        DEBUG_PRINT("ht_remove: Can't search a null table\n");
+        DEBUG_PRINT("rt_remove: Can't search a null table\n");
         return;
     }
     #endif
 
-    int hash = ht_hash(key, table->size);
-    htItem *del = NULL, *itr = table->internal[hash];
+    int hash = rt_hash(from, to, rel, table->size);
+    rtItem *del = NULL, *itr = table->internal[hash];
 
     if(itr)
     {       
-        if(strcmp(itr->data, key) == 0)
+        if(itr->from == from && itr->to == to && itr->rel == rel)
         {
             del = itr;
             table->internal[hash] = itr->next;
@@ -416,7 +382,7 @@ void ht_remove(hashTable *table, char* key)
         {
             while(itr->next)
             {             
-                if(strcmp(key, itr->data) == 0)
+                if(itr->from == from && itr->to == to && itr->rel == rel)
                 {
                     //found match
                     del = itr->next;
@@ -428,7 +394,6 @@ void ht_remove(hashTable *table, char* key)
         }
         if(del)
         {
-            free(del->data);
             free(del);
         }
     }
@@ -436,12 +401,54 @@ void ht_remove(hashTable *table, char* key)
     else
     {
         //not found
-        //DEBUG_PRINT("ht_remove: Trying to delete not existent key for %s\n", key);
+        //DEBUG_PRINT("rt_remove: Trying to delete not existent key for %s\n", key);
     }
     #endif
 
 }
 
+
+/**
+ * Remove every relation of an entity
+ * 
+ * @param table table where to remove
+ * @param ent target of future removal
+ */
+void rt_removeAll_for(relationTable *table, htItem* ent)
+{
+
+    for(int i = 0; i < table->size; i++)
+    {
+        rtItem *prev = NULL, *del = NULL, *itr = table->internal[i];
+        while (itr)
+        {
+            if(itr->from == ent || itr->to == ent)
+            {
+                del = itr;
+                if(del == table->internal[i])
+                {
+                    table->internal[i] = itr->next;
+                }
+                else
+                {
+                    prev->next = del->next;
+                }              
+            }
+            else
+            {
+                prev = itr;
+            }
+            itr = itr->next;
+
+            if(del) 
+            {
+                free(del);
+                del = NULL;
+            }
+
+        } 
+    }
+}
 
 /****************************************
  * CLEAN UP
@@ -451,24 +458,23 @@ void ht_remove(hashTable *table, char* key)
  * Delete all allocated ram for table
  * This function also deletes ALL key strings!
  */
-void ht_clean(hashTable *table)
+void rt_clean(relationTable *table)
 {
     #ifdef DEBUG
     if(!table)
     {
-        DEBUG_PRINT("ht_clean: Can't delete a null table\n");
+        DEBUG_PRINT("rt_clean: Can't delete a null table\n");
         return;
     }
     #endif
     for(int i = 0; i < table->size; i++)
     {
-        htItem *del = NULL, *itr = table->internal[i];
+        rtItem *del = NULL, *itr = table->internal[i];
         while (itr)
         {
             del = itr;
             itr = itr->next;
-
-            free(del->data);       
+  
             free(del);
         }     
     }

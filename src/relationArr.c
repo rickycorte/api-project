@@ -62,12 +62,12 @@ static inline void ra_insert(relationArray *arr, char *rel)
     if(!arr)
     {
         DEBUG_PRINT("rb_insert: Can't insert in a null array");
-        return -1;
+        return;
     }
     if(!rel)
     {
         DEBUG_PRINT("rb_find1: Can't insert a null relation");
-        return -1;
+        return;
     }
     #endif
 
@@ -133,11 +133,11 @@ static inline int ra_find1(relationArray *arr, char *rel)
     {
         mid = (low + high)/2;
         cmp = strcmp(rel, arr->relations[mid]);
-        if(strcmp == 0)
+        if(cmp == 0)
         {
             return mid;
         }
-        else if(strcmp > 0)
+        else if(cmp > 0)
         {
             low = mid + 1;
         }
@@ -207,7 +207,7 @@ static inline void ra_clean(relationArray *arr)
     if(!arr)
     {
         DEBUG_PRINT("rb_clear: Can't clear a null array");
-        return -1;
+        return;
     }
     #endif
 

@@ -9,9 +9,11 @@
 # define DEBUG_PRINT(...)
 #endif
 
+#include "bench.c"
 
 #include "hashtable.c"
-#include "bench.c"
+#include "relationTable.c"
+
 #include "relationArr.c"
 
 
@@ -137,12 +139,16 @@ static inline void add_entity(hashTable *table, char **command)
  * @param table hastable where to remove
  * @param command source where grab data (unused parts are freed except command[0])
  */
-static inline void remove_entity(hashTable *table, char **command)
+static inline void remove_entity(hashTable *table,relationTable *relations, char **command)
 {
-    ht_remove(table, command[1]);
+    htItem *rm = ht_hasKey(table,command[1]);
+    if(rm)
+    {
+        rt_removeAll_for(relations, rm);
+        ht_remove(table, command[1]);
+    }
     //DEBUG_PRINT("Removed %s\n", command[1]);
     
-    //TODO: add relation delete
     free(command[1]);
 }
 
@@ -157,10 +163,10 @@ static inline void remove_entity(hashTable *table, char **command)
  * 
  * @param entities entities hash table
  * @param relNames relations array
- * @param // relations hash table
+ * @param relations relations hash table
  * @param command source where grab data (unused parts are freed except command[0])
  */
-static inline void add_relation(hashTable *entities, relationArray *relNames, char **command)
+static inline void add_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
 {
     htItem *source = ht_hasKey(entities, command[1]);
     htItem *dest = ht_hasKey(entities, command[2]);
@@ -181,7 +187,10 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, ch
         }
 
         //insert relelation in rel table
-
+        if(!rt_hasKey(relations, source, dest, rel))
+        {
+            rt_insert2(relations, source, dest, rel);
+        }
     }
     else
     {
@@ -195,10 +204,10 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, ch
  * 
  * @param entities entities hash table
  * @param relNames relations array
- * @param // relations hash table
+ * @param relations relations hash table
  * @param command source where grab data (unused parts are freed except command[0])
  */
-static inline void remove_relation(hashTable *entities, relationArray *relNames, char **command)
+static inline void remove_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
 {
     htItem *source = ht_hasKey(entities, command[1]);
     htItem *dest = ht_hasKey(entities, command[2]);
@@ -212,7 +221,7 @@ static inline void remove_relation(hashTable *entities, relationArray *relNames,
         //search and delete relation (not in)
         if(rel)
         {
-
+            rt_remove(relations, source, dest, rel);
         }
         // no relation found
 
@@ -241,11 +250,15 @@ int main(int argc, char** argv)
 
     //init entity table
     hashTable *entities_table;
-    entities_table = ht_init2(entities_table);
+    entities_table = ht_init2();
 
     //init relation array
     relationArray relation_names;
     ra_init(&relation_names);
+
+    //init relation table
+    relationTable *relation_table;
+    relation_table = rt_init2();
 
     #ifdef DEBUG
     FILE *fl = fopen("test.txt","r");
@@ -299,7 +312,7 @@ int main(int argc, char** argv)
             else if(command[0][3] == 'r')
             {
                 //addrel
-                add_relation(entities_table, &relation_names, command);
+                add_relation(entities_table, &relation_names, relation_table, command);
             }
 
         } else if(command[0][0] == 'd')
@@ -307,12 +320,12 @@ int main(int argc, char** argv)
             if(command[0][3] == 'e')
             {
                 //delent
-                remove_entity(entities_table, command);
+                remove_entity(entities_table, relation_table, command);
             }
             else if(command[0][3] == 'r')
             {
                 //delrel
-                 remove_relation(entities_table, &relation_names, command);
+                 remove_relation(entities_table, &relation_names, relation_table, command);
             }
         }
         else if(command[0][0] == 'r')
@@ -344,9 +357,12 @@ int main(int argc, char** argv)
     DEBUG_PRINT("\n\n");
     ht_print_status(entities_table);
 
-    ht_clean(entities_table);
-
+    //clean relations
+    rt_clean(relation_table);
+    //rm relation names
     ra_clean(&relation_names);
+    //rm entities
+    ht_clean(entities_table);
 
     #ifdef DEBUG
     if(fl) fclose(fl);
