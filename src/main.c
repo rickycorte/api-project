@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #define DEBUG
+#define OPERATIONS
 
 #ifdef DEBUG
 # define DEBUG_PRINT printf 
@@ -38,12 +39,12 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
     #ifdef DEBUG
     if(!is)
     {
-        DEBUG_PRINT("get_formatted_input: Can't read from a null stream");
+        DEBUG_PRINT("get_formatted_input: Can't read from a null stream\n");
         return 0;
     }
     if(!command)
     {
-        DEBUG_PRINT("get_formatted_input: Can't save on a null command array");
+        DEBUG_PRINT("get_formatted_input: Can't save on a null command array\n");
         return 0;
     }
     #endif
@@ -73,7 +74,7 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
             //TODO: check if i can omit this check
             if(cmd_part > max_size)
             {
-                DEBUG_PRINT("get_formatted_input: Broken command, %d max_size exceded", max_size);
+                DEBUG_PRINT("get_formatted_input: Broken command, %d max_size exceded\n", max_size);
                 for(int i = 0 ; i < cmd_part; i++)
                 {
                     free(command[i]);                   
@@ -119,6 +120,9 @@ static inline int get_formatted_input(FILE *is, char **command, int *size, int m
  */
 static inline void add_entity(hashTable *table, char **command)
 {
+    #ifdef OPERATIONS
+    DEBUG_PRINT(">  [Attempt] Create entity: %s\n", command[1]);
+    #endif
     if(!ht_hasKey(table, command[1]))
     {
         ht_insert2(table, command[1]);
@@ -126,7 +130,9 @@ static inline void add_entity(hashTable *table, char **command)
     }
     else
     {
-        //DEBUG_PRINT("Duplicate key for %s\n", command[1]);
+        #ifdef OPERATIONS
+        DEBUG_PRINT(" / Duplicate key for %s\n", command[1]);
+        #endif
         free(command[1]);
     }
 }
@@ -140,11 +146,20 @@ static inline void add_entity(hashTable *table, char **command)
  */
 static inline void remove_entity(hashTable *table,relationTable *relations, char **command)
 {
+    #ifdef OPERATIONS
+    DEBUG_PRINT(">  [Attempt] Delete entity: %s\n", command[1]);
+    #endif
     htItem *rm = ht_hasKey(table,command[1]);
     if(rm)
     {
         rt_removeAll_for(relations, rm);
         ht_remove(table, command[1]);
+    }
+    else
+    {
+        #ifdef OPERATIONS
+        DEBUG_PRINT(" / No key for %s\n", command[1]);
+        #endif
     }
     //DEBUG_PRINT("Removed %s\n", command[1]);
     
@@ -167,6 +182,9 @@ static inline void remove_entity(hashTable *table,relationTable *relations, char
  */
 static inline void add_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
 {
+    #ifdef OPERATIONS
+    DEBUG_PRINT(">  [Attempt] Create relation from: %s to: %s rel: %s\n", command[1], command[2], command[3]);
+    #endif
     htItem *source = ht_hasKey(entities, command[1]);
     htItem *dest = ht_hasKey(entities, command[2]);
     free(command[1]);
@@ -207,6 +225,9 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, re
  */
 static inline void remove_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
 {
+    #ifdef OPERATIONS
+    DEBUG_PRINT(">  [Attempt] Delete relation from: %s to: %s rel: %s\n", command[1], command[2], command[3]);
+    #endif
     htItem *source = ht_hasKey(entities, command[1]);
     htItem *dest = ht_hasKey(entities, command[2]);
     free(command[1]);
@@ -557,8 +578,13 @@ int main(int argc, char** argv)
 
     } while (!exit_loop);
 
-    DEBUG_PRINT("\n\n");
+    #ifdef DEBUG
+    DEBUG_PRINT("\nEntities:\n");
     ht_print_status(entities_table);
+
+    DEBUG_PRINT("\nRelations:\n");
+    ht_print_status(relation_table);
+    #endif
 
     //clean relations
     rt_clean(relation_table);
@@ -571,7 +597,7 @@ int main(int argc, char** argv)
     if(fl) fclose(fl);
 
     double msTm = (ns() - start_tm)/1000000;
-    printf("Execution time: %.2fms ~ %.2fs\n", msTm, msTm/1000);
+    printf("\nExecution time: %.2fms ~ %.2fs\n", msTm, msTm/1000);
     #endif
 
     return 0;

@@ -237,6 +237,11 @@ void rt_insert2(relationTable *table, htItem* from, htItem* to, relation *rel)
     item->rel = rel;
 
     rt_insert1(table, item);
+
+    #ifdef OPERATIONS
+    DEBUG_PRINT(" ! Created relation from: %s (%p) to: %s (%p) rel: %s (%p)\n",
+     item->from->data, item->from, item->to->data, item->to, item->rel->name, item->rel);
+     #endif
 }
 
 
@@ -382,7 +387,7 @@ void rt_remove(relationTable *table, htItem* from, htItem* to, relation *rel)
         {
             while(itr->next)
             {             
-                if(itr->from == from && itr->to == to && itr->rel == rel)
+                if(itr->next->from == from && itr->next->to == to && itr->next->rel == rel)
                 {
                     //found match
                     del = itr->next;
@@ -394,6 +399,10 @@ void rt_remove(relationTable *table, htItem* from, htItem* to, relation *rel)
         }
         if(del)
         {
+            #ifdef OPERATIONS
+            DEBUG_PRINT(" $ Deleted relation from: %s (%p) to: %s (%p) rel: %s (%p)\n",
+                del->from->data, del->from, del->to->data, del->to, del->rel->name, del->rel);
+                #endif
             free(del);
         }
     }
@@ -442,6 +451,10 @@ void rt_removeAll_for(relationTable *table, htItem* ent)
 
             if(del) 
             {
+                #ifdef OPERATIONS
+                DEBUG_PRINT(" $ Deleted relation from: %s (%p) to: %s (%p) rel: %s (%p)\n",
+                del->from->data, del->from, del->to->data, del->to, del->rel->name, del->rel);
+                #endif
                 free(del);
                 del = NULL;
             }

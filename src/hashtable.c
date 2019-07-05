@@ -170,7 +170,7 @@ static inline int ht_hash(char *key, int size)
     #ifdef DEBUG
     if(!key)
     {
-        DEBUG_PRINT("ht_hash: Can't hash a NULL key");
+        DEBUG_PRINT("ht_hash: Can't hash a NULL key\n");
         return 0;
     }
     #endif
@@ -254,6 +254,10 @@ void ht_insert2(hashTable *table, char *key)
     item->data = key;
 
     ht_insert1(table, item);
+
+    #ifdef OPERATIONS
+    DEBUG_PRINT(" + Created entity: %s (%p)\n", item->data, item);
+    #endif
 }
 
 
@@ -428,6 +432,9 @@ void ht_remove(hashTable *table, char* key)
         }
         if(del)
         {
+            #ifdef OPERATIONS
+            DEBUG_PRINT(" - Deleted entity: %s (%p)\n", del->data, del);
+            #endif
             free(del->data);
             free(del);
         }
