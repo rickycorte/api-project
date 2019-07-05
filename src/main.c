@@ -250,8 +250,6 @@ typedef struct s_top
  */
 static inline void report(hashTable *entities, relationArray *relNames, relationTable *relations)
 {
-    return;
-    
     // no relations
     if(relNames->size < 1)
     {
@@ -259,15 +257,179 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
         return;
     }
 
+    //best values for relation
     int *best_val = malloc(relNames->size * sizeof(int));
-    Top **best_list = malloc(sizeof(Top**) * relNames->size);
+    Top **rel_list = malloc(sizeof(Top**) * relNames->size);
 
     memset(best_val, 0, relNames->size * sizeof(int));
-    memset(best_list, 0, sizeof(Top**) * relNames->size);
+    memset(rel_list, 0, sizeof(Top**) * relNames->size);
 
     //reuse allocated a unused items
     Top* pool = NULL;
+    
+    int *cur_val = malloc(relNames->size * sizeof(int));
 
+    for(int i = 0; i < entities->size; i++)
+    {
+        htItem *ent = entities->internal[i];
+    
+        while (ent)
+        {
+            //iterate all entities
+            memset(cur_val, 0, relNames->size * sizeof(int));
+
+            //iterate all relations and count per relation qta of ent
+            for(int j = 0; j < relations->size; j++)
+            {
+                rtItem *rel = relations->internal[j];
+            
+                while (rel)
+                {                
+                    if(rel->to == ent)
+                    {
+                        cur_val[rel->rel->index] += 1;
+                    }
+
+                    rel = rel->next;
+                } 
+
+            }
+
+            //check if this ent beats a maximum for a relation
+            for(int k = 0; k < relNames->size; k++)
+            {
+                if(cur_val[k] > best_val[k])
+                {
+                    best_val[k] = cur_val[k];
+
+                    if(rel_list[k] == NULL)
+                    {
+                        //allocate a new element (or reuse one in pool)
+                        Top *el;
+                        if(pool == NULL)
+                        {
+                           el = malloc(sizeof(Top));
+                        }
+                        else
+                        {
+                            el = pool;
+                            pool = pool->next;
+                        }
+                        el->who = ent;
+                        el->next = NULL;
+                        rel_list[k] = el;
+                    }
+                    else
+                    {
+                        rel_list[k]->who = ent; // reuse a present entry
+                        //move other allocated items to pool
+                        if(rel_list[k]->next != NULL)
+                        {
+                            //find last element
+                            Top *itr = rel_list[k]->next;
+                            while (itr->next)
+                            {
+                                itr = itr->next;
+                            }
+                            itr->next = pool;
+                            pool = rel_list[k]->next;                            
+                        }
+                        rel_list[k]->next = NULL;
+                    }
+                }
+                //more entitie with same number of relations (not 0)
+                else if(cur_val[k] > 0 && cur_val[k] == best_val[k] )
+                {
+                    //allocate a new element (or reuse one in pool)
+                    Top *el;
+                    if(pool == NULL)
+                    {
+                        el = malloc(sizeof(Top));
+                    }
+                    else
+                    {
+                        el = pool;
+                        pool = pool->next;
+                    }
+
+                    el->who = ent;
+
+                    //insert in order
+                    if(rel_list[k] && strcmp(el->who->data, rel_list[k]->who->data) < 0)
+                    {
+                        el->next = rel_list[k];
+                        rel_list[k] = el;
+                    }
+                    else
+                    {
+                        Top *itr = rel_list[k];
+                        while(itr)
+                        {
+                            if(itr->next == NULL || strcmp(el->who->data, itr->next->who->data) < 0)
+                            {
+                                el->next = itr->next;
+                                itr->next = el;
+                                break;
+                            }
+                            itr = itr->next;
+                        }
+                    }
+
+                }
+                
+            }
+
+            ent = ent->next;
+        } 
+
+    }
+
+    //print result
+    int print = 0;
+    for(int i = 0; i < relNames->size; i++)
+    {
+        Top *itr = rel_list[i];
+        if(itr)
+        {
+            if(print) printf(" ");
+
+            printf("%s", relNames->relations[i]->name);
+            print = 1;
+            while (itr)
+            {
+                printf(" %s", itr->who->data);
+                itr = itr->next;
+            }
+            printf(" %d;", best_val[i]);
+        }
+    }
+
+    if(!print)
+        printf("none\n");
+    else
+            printf("\n");
+
+    //free shit
+    free(cur_val);
+    Top *del, *itr = pool;
+    while (itr)
+    {
+        del = itr;
+        itr = itr->next;
+        free(del);
+    }
+    for(int i = 0; i < relNames->size; i++)
+    {
+        itr = rel_list[i];
+        while (itr)
+        {
+            del = itr;
+            itr = itr->next;
+            free(del);
+        }
+    }
+    free(best_val);
+    free(rel_list);
 }
 
 
