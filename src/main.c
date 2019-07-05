@@ -12,9 +12,8 @@
 #include "bench.c"
 
 #include "hashtable.c"
-#include "relationTable.c"
-
 #include "relationArr.c"
+#include "relationTable.c"
 
 
 /****************************************
@@ -175,15 +174,14 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, re
     if(source && dest)
     {
         //check if the relation has just been created
-        char *rel = ra_find2(relNames, command[3]);
+        relation *rel = ra_find2(relNames, command[3]);
         if(rel)
         {
             free(command[3]);
         }
         else
         {
-            ra_insert(relNames, command[3]);
-            rel = command[3];
+            rel = ra_insert(relNames, command[3]);
         }
 
         //insert relelation in rel table
@@ -216,7 +214,7 @@ static inline void remove_relation(hashTable *entities, relationArray *relNames,
     if(source && dest)
     {
         //check if the relation has just been created
-        char *rel = ra_find2(relNames, command[3]);
+        relation *rel = ra_find2(relNames, command[3]);
 
         //search and delete relation (not in)
         if(rel)
@@ -228,6 +226,48 @@ static inline void remove_relation(hashTable *entities, relationArray *relNames,
     }
     
     free(command[3]);
+}
+
+
+
+/****************************************
+ * REPORT
+ ****************************************/
+
+typedef struct s_top 
+{
+    htItem *who;
+    struct s_top *next;
+} Top;
+
+
+/**
+ * Report command
+ * 
+ * @param entities entities hash table
+ * @param relNames relations array
+ * @param relations relations hash table
+ */
+static inline void report(hashTable *entities, relationArray *relNames, relationTable *relations)
+{
+    return;
+    
+    // no relations
+    if(relNames->size < 1)
+    {
+        printf("none\n");
+        return;
+    }
+
+    int *best_val = malloc(relNames->size * sizeof(int));
+    Top **best_list = malloc(sizeof(Top**) * relNames->size);
+
+    memset(best_val, 0, relNames->size * sizeof(int));
+    memset(best_list, 0, sizeof(Top**) * relNames->size);
+
+    //reuse allocated a unused items
+    Top* pool = NULL;
+
 }
 
 
@@ -331,6 +371,7 @@ int main(int argc, char** argv)
         else if(command[0][0] == 'r')
         {
             //report
+            report(entities_table, &relation_names, relation_table);
         }
         else if(command[0][0] == 'e')
         {         

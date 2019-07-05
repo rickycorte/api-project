@@ -11,10 +11,15 @@
  * DATA STRUCTS
  ****************************************/
 
+typedef struct s_relation
+{
+    char* name;
+    int index;
+} relation;
 
 typedef struct s_relationArray
 {
-    char **relations;
+    relation **relations;
     int size;
     int allocated_size;
 } relationArray;
@@ -38,7 +43,7 @@ static inline void ra_init(relationArray *arr)
         DEBUG_PRINT("rb_init: Can't init a null array");
     }
     #endif
-    arr->relations = (char **)malloc(sizeof(char**) * RA_DEFAULT_SIZE);
+    arr->relations = (relation **)malloc(sizeof(relation**) * RA_DEFAULT_SIZE);
     arr->allocated_size = RA_DEFAULT_SIZE;
     arr->size = 0;
 }
@@ -56,7 +61,7 @@ static inline void ra_init(relationArray *arr)
  * @param arr array where to insert
  * @param rel relation to intert
  */
-static inline void ra_insert(relationArray *arr, char *rel)
+static inline relation *ra_insert(relationArray *arr, char *rel)
 {
     #ifdef DEBUG
     if(!arr)
@@ -71,10 +76,13 @@ static inline void ra_insert(relationArray *arr, char *rel)
     }
     #endif
 
+    relation *irel = malloc(sizeof(relation));
+    irel->name = rel;
+
     //resize if no more space is available
     if(arr->size + 1 > arr->allocated_size)
     {
-       char ** temp = (char **)realloc(arr->relations, (arr->allocated_size + RA_DEFAULT_RESIZE) * sizeof(char**));
+       char ** temp = realloc(arr->relations, (arr->allocated_size + RA_DEFAULT_RESIZE) * sizeof(relation**));
        if(!temp)
        {
            DEBUG_PRINT("ra_insert: Unable to reallocate relation array");
@@ -88,13 +96,17 @@ static inline void ra_insert(relationArray *arr, char *rel)
 
     //insert
     int i;
-    for(i = arr->size - 1;  i >= 0 && strcmp(rel, arr->relations[i]) < 0; i--)
+    for(i = arr->size - 1;  i >= 0 && strcmp(rel, arr->relations[i]->name) < 0; i--)
     { 
         arr->relations[i+1] = arr->relations[i];
+        arr->relations[i+1]->index = i+1;
     }
-    arr->relations[i+1] = rel;
+    arr->relations[i+1] = irel;
+    arr->relations[i+1]->index = i+1;
 
     arr->size += 1;
+
+    return irel;
 
 }
 
@@ -132,7 +144,7 @@ static inline int ra_find1(relationArray *arr, char *rel)
     while (low <= high)
     {
         mid = (low + high)/2;
-        cmp = strcmp(rel, arr->relations[mid]);
+        cmp = strcmp(rel, arr->relations[mid]->name);
         if(cmp == 0)
         {
             return mid;
@@ -158,7 +170,7 @@ static inline int ra_find1(relationArray *arr, char *rel)
  * @param rel relation to search
  * @return pointer to reletion char, null if not found
  */
-static inline char *ra_find2(relationArray *arr, char *rel)
+static inline relation *ra_find2(relationArray *arr, char *rel)
 {
     int idx = ra_find1(arr, rel);
 
@@ -186,6 +198,7 @@ static inline void ra_remove(relationArray *arr, char *rel)
     for(int i = pos; i < arr->size-1; i++)
     {
         arr->relations[i] = arr->relations[i+1]; 
+        arr->relations[i]->index = i;
     }
     arr->size -= 1;
 }
@@ -213,6 +226,7 @@ static inline void ra_clean(relationArray *arr)
 
     for(int i = 0; i < arr->size; i++)
     {
+        free(arr->relations[i]->name);
         free(arr->relations[i]);
     }
     free(arr->relations);

@@ -19,7 +19,7 @@ typedef struct s_rtItem
 {
     htItem *from;
     htItem *to;
-    char *rel;
+    relation *rel;
 
     struct s_rtItem *next;
 } rtItem;
@@ -168,7 +168,7 @@ static inline relationTable* rt_init2()
  * 
  * @return key hash
  */
-static inline int rt_hash(htItem *from, htItem* to, char *rel, int size)
+static inline int rt_hash(htItem *from, htItem* to, relation *rel, int size)
 {
     long x = (long)from * (long)to *(long)rel;
     x = ((x >> 32) ^ x) * 0x45d9f3b;
@@ -220,7 +220,7 @@ static inline void rt_insert1(relationTable *table, rtItem *item)
  * @param table hasrtable where insert is made
  * @param key key to insert
  */
-void rt_insert2(relationTable *table, htItem* from, htItem* to, char *rel)
+void rt_insert2(relationTable *table, htItem* from, htItem* to, relation *rel)
 {
     rtItem *item = (rtItem *)malloc(sizeof(rtItem));
 
@@ -297,7 +297,7 @@ static inline void rt_resize(relationTable *table)
  * @param key key to search
  * @return rtItem pointer of found element, null if not found
  */
-rtItem* rt_hasKey(relationTable *table, htItem* from, htItem* to, char *rel)
+rtItem* rt_hasKey(relationTable *table, htItem* from, htItem* to, relation *rel)
 {
     #ifdef DEBUG
     if(!table)
@@ -358,7 +358,7 @@ rtItem* rt_hasKey(relationTable *table, htItem* from, htItem* to, char *rel)
  * @param table pointer to table where to find key
  * @param key key to search and delete
  */
-void rt_remove(relationTable *table, htItem* from, htItem* to, char *rel)
+void rt_remove(relationTable *table, htItem* from, htItem* to, relation *rel)
 {
     #ifdef DEBUG
     if(!table)
