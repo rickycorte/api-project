@@ -607,7 +607,7 @@ int main(int argc, char** argv)
     if(fl) fclose(fl);
 
     double msTm = (ns() - start_tm)/1000000;
-    printf("\nExecution time: %.2fms ~ %.2fs\n", msTm, msTm/1000);
+    printf("\nExecution time: %.2fms ~ %.2fs (%.2fns)\n", msTm, msTm/1000, ns() - start_tm);
     #endif
 
     return 0;
