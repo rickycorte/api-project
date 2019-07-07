@@ -418,9 +418,9 @@ void ht_remove(hashTable *table, char* key)
         }
         else
         {
-            while(itr->next)
+            while(itr)
             {             
-                if(strcmp(key, itr->data) == 0)
+                if(strcmp(key, itr->next->data) == 0)
                 {
                     //found match
                     del = itr->next;

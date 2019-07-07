@@ -10,3 +10,8 @@ CTestTestfile.cmake
 .vscode
 bin
 test/test.txt
+.idea
+cetrioli.cbp
+CMakeFiles
+Makefile
+cmake_install.cmake

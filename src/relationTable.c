@@ -429,6 +429,7 @@ void rt_removeAll_for(relationTable *table, htItem* ent)
     for(int i = 0; i < table->size; i++)
     {
         rtItem *prev = NULL, *del = NULL, *itr = table->internal[i];
+       
         while (itr)
         {
             if(itr->from == ent || itr->to == ent)

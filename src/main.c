@@ -1,7 +1,8 @@
 #include <stdio.h>
 
 #define DEBUG
-#define OPERATIONS
+//#define OPERATIONS
+//#define REPORT
 
 #ifdef DEBUG
 # define DEBUG_PRINT printf 
@@ -309,6 +310,15 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
                     if(rel->to == ent)
                     {
                         cur_val[rel->rel->index] += 1;
+
+                        #ifdef REPORT
+                        if(!(rel->rel->name) || !(rel->to) || !(rel->to->data) || !(rel->from) || !(rel->from->data)) 
+                        {
+                            DEBUG_PRINT("OHU NOU");
+                        }
+                        DEBUG_PRINT("[R] %s +1 to: %s (%p), from %s (%p)\n",
+                        rel->rel->name, rel->to->data, rel->to, rel->from->data, rel->from);
+                        #endif
                     }
 
                     rel = rel->next;
