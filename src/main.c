@@ -17,6 +17,7 @@
 #include "relationArr.c"
 #include "relationTable.c"
 
+#include "reportHashTable.c"
 
 /****************************************
  * INPUT
@@ -279,140 +280,82 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
         return;
     }
 
-    //best values for relation
-    int *best_val = malloc(relNames->size * sizeof(int));
-    Top **rel_list = malloc(sizeof(Top**) * relNames->size);
+    reportTable *rep = rh_init2();
 
-    memset(best_val, 0, relNames->size * sizeof(int));
+    int *best_counts = malloc(sizeof(int) * relNames->size);
+    memset(best_counts, 0, relNames->size * sizeof(int));
+
+    Top **rel_list = malloc(sizeof(Top**) * relNames->size);
     memset(rel_list, 0, sizeof(Top**) * relNames->size);
 
-    //reuse allocated a unused items
-    Top* pool = NULL;
-    
-    int *cur_val = malloc(relNames->size * sizeof(int));
 
-    for(int i = 0; i < entities->size; i++)
+    // calculate count for every relation
+    int sz = relations->size;
+    for(int i = 0; i < sz; i++)
     {
-        htItem *ent = entities->internal[i];
-    
-        while (ent)
+        rtItem *itr = relations->internal[i];
+        rhItem *irel;
+        while(itr)
         {
-            //iterate all entities
-            memset(cur_val, 0, relNames->size * sizeof(int));
-
-            //iterate all relations and count per relation qta of ent
-            for(int j = 0; j < relations->size; j++)
+            irel = rh_hasKey(rep, itr->to, itr->rel);
+            if(irel)
             {
-                rtItem *rel = relations->internal[j];
-            
-                while (rel)
-                {                
-                    if(rel->to == ent)
-                    {
-                        cur_val[rel->rel->index] += 1;
-
-                        #ifdef REPORT
-                        if(!(rel->rel->name) || !(rel->to) || !(rel->to->data) || !(rel->from) || !(rel->from->data)) 
-                        {
-                            DEBUG_PRINT("OHU NOU");
-                        }
-                        DEBUG_PRINT("[R] %s +1 to: %s (%p), from %s (%p)\n",
-                        rel->rel->name, rel->to->data, rel->to, rel->from->data, rel->from);
-                        #endif
-                    }
-
-                    rel = rel->next;
-                } 
-
+                irel->cout += 1;
+                //update best values for relations
+                if(best_counts[itr->rel->index] < irel->cout)
+                {
+                    best_counts[itr->rel->index] = irel->cout;
+                }
+            }
+            else
+            {
+                rh_insert2(rep, itr->to, itr->rel);
+                //update best values for relations
+                if(best_counts[itr->rel->index] < 1)
+                {
+                    best_counts[itr->rel->index] = 1;
+                }
             }
 
-            //check if this ent beats a maximum for a relation
-            for(int k = 0; k < relNames->size; k++)
+            itr = itr->next;
+        }
+    }
+
+    sz = rep->size;
+    for(int i = 0; i < sz; i++)
+    {
+        rhItem *itr = rep->internal[i];
+        while (itr)
+        {
+            if(itr->cout >= best_counts[itr->rel->index])
             {
-                if(cur_val[k] > best_val[k])
+                Top *el = malloc(sizeof(Top));
+                el->who = itr->to;
+                //insert with order
+                if(rel_list[itr->rel->index] == NULL || strcmp(el->who->data, rel_list[itr->rel->index]->who->data) < 0)
                 {
-                    best_val[k] = cur_val[k];
-
-                    if(rel_list[k] == NULL)
+                    el->next = rel_list[itr->rel->index];
+                    rel_list[itr->rel->index] = el;
+                }
+                else
+                {
+                    Top *tp = rel_list[itr->rel->index];
+                    while(tp)
                     {
-                        //allocate a new element (or reuse one in pool)
-                        Top *el;
-                        if(pool == NULL)
+                        if(tp->next == NULL || strcmp(el->who->data, tp->next->who->data) < 0)
                         {
-                           el = malloc(sizeof(Top));
+                            el->next = tp->next;
+                            tp->next = el;
+                            break;
                         }
-                        else
-                        {
-                            el = pool;
-                            pool = pool->next;
-                        }
-                        el->who = ent;
-                        el->next = NULL;
-                        rel_list[k] = el;
-                    }
-                    else
-                    {
-                        rel_list[k]->who = ent; // reuse a present entry
-                        //move other allocated items to pool
-                        if(rel_list[k]->next != NULL)
-                        {
-                            //find last element
-                            Top *itr = rel_list[k]->next;
-                            while (itr->next)
-                            {
-                                itr = itr->next;
-                            }
-                            itr->next = pool;
-                            pool = rel_list[k]->next;                            
-                        }
-                        rel_list[k]->next = NULL;
+                        tp = tp->next;
                     }
                 }
-                //more entitie with same number of relations (not 0)
-                else if(cur_val[k] > 0 && cur_val[k] == best_val[k] )
-                {
-                    //allocate a new element (or reuse one in pool)
-                    Top *el;
-                    if(pool == NULL)
-                    {
-                        el = malloc(sizeof(Top));
-                    }
-                    else
-                    {
-                        el = pool;
-                        pool = pool->next;
-                    }
-
-                    el->who = ent;
-
-                    //insert in order
-                    if(rel_list[k] && strcmp(el->who->data, rel_list[k]->who->data) < 0)
-                    {
-                        el->next = rel_list[k];
-                        rel_list[k] = el;
-                    }
-                    else
-                    {
-                        Top *itr = rel_list[k];
-                        while(itr)
-                        {
-                            if(itr->next == NULL || strcmp(el->who->data, itr->next->who->data) < 0)
-                            {
-                                el->next = itr->next;
-                                itr->next = el;
-                                break;
-                            }
-                            itr = itr->next;
-                        }
-                    }
-
-                }
-                
             }
 
-            ent = ent->next;
-        } 
-
+            itr = itr->next;
+        }
+        
     }
 
     //print result
@@ -431,7 +374,7 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
                 printf(" %s", itr->who->data);
                 itr = itr->next;
             }
-            printf(" %d;", best_val[i]);
+            printf(" %d;", best_counts[i]);
         }
     }
 
@@ -440,15 +383,10 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
     else
             printf("\n");
 
-    //free shit
-    free(cur_val);
-    Top *del, *itr = pool;
-    while (itr)
-    {
-        del = itr;
-        itr = itr->next;
-        free(del);
-    }
+
+    //cleanup
+    free(best_counts);
+    Top* itr, *del;
     for(int i = 0; i < relNames->size; i++)
     {
         itr = rel_list[i];
@@ -459,8 +397,9 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
             free(del);
         }
     }
-    free(best_val);
     free(rel_list);
+    rh_clean(rep);
+
 }
 
 
@@ -505,34 +444,6 @@ int main(int argc, char** argv)
     {
        if(get_formatted_input(fl, command, &cmd_sz, 4))
        {
-
-/*
-            if(strcmp(command[0], "addent") == 0)
-            {
-
-            }
-            else if(strcmp(command[0], "delent") == 0)
-            {
-
-            }
-            else if(strcmp(command[0], "addrel") == 0)
-            {
-
-            }
-            else if(strcmp(command[0], "delrel") == 0)
-            {
-
-            }
-            else if(strcmp(command[0], "report") == 0)
-            {
-
-            }
-            else if(strcmp(command[0], "end") == 0)
-            {
-                exit_loop = 1;
-
-            }
-*/
 
         //assume input is ok
         if(command[0][0] == 'a')
@@ -593,7 +504,7 @@ int main(int argc, char** argv)
     ht_print_status(entities_table);
 
     DEBUG_PRINT("\nRelations:\n");
-    ht_print_status(relation_table);
+    rt_print_status(relation_table);
     #endif
 
     //clean relations

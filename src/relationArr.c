@@ -67,12 +67,12 @@ static inline relation *ra_insert(relationArray *arr, char *rel)
     if(!arr)
     {
         DEBUG_PRINT("rb_insert: Can't insert in a null array");
-        return;
+        return NULL;
     }
     if(!rel)
     {
         DEBUG_PRINT("rb_find1: Can't insert a null relation");
-        return;
+        return NULL;
     }
     #endif
 
