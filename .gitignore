@@ -15,3 +15,5 @@ cetrioli.cbp
 CMakeFiles
 Makefile
 cmake_install.cmake
+release/a.out
+release/test.txt

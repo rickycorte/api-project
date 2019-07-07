@@ -82,7 +82,7 @@ static inline relation *ra_insert(relationArray *arr, char *rel)
     //resize if no more space is available
     if(arr->size + 1 > arr->allocated_size)
     {
-       char ** temp = realloc(arr->relations, (arr->allocated_size + RA_DEFAULT_RESIZE) * sizeof(relation**));
+       relation **temp = realloc(arr->relations, (arr->allocated_size + RA_DEFAULT_RESIZE) * sizeof(relation**));
        if(!temp)
        {
            DEBUG_PRINT("ra_insert: Unable to reallocate relation array");
