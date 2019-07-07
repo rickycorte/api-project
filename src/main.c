@@ -4,6 +4,8 @@
 //#define OPERATIONS
 //#define REPORT
 
+#define INPUT_BUFFER_SIZE 2048
+
 #ifdef DEBUG
 # define DEBUG_PRINT printf 
 # define READ_FROM_FILE
@@ -18,96 +20,6 @@
 #include "relationTable.c"
 
 #include "reportHashTable.c"
-
-/****************************************
- * INPUT
- ****************************************/
-
-/**
- * Get formatted input from stream
- * Format specified in minnezza/ProvaFinale2019.pdf (pag 11)
- * Hypothesis: NO FORMAT ERRORS!
- * Note: each element of command is indipendend and can be deallocated at any time without damages
- * 
- * @param is stream where read is done
- * @param command array of char pointers (dim should be 4 to fit biggest command)
- * @param size command item count
- * @param max_size max command size
- * 
- * @return 0 on error, 1 on success
- */
-static inline int get_formatted_input(FILE *is, char **command, int *size, int max_size)
-{
-    #ifdef DEBUG
-    if(!is)
-    {
-        DEBUG_PRINT("get_formatted_input: Can't read from a null stream\n");
-        return 0;
-    }
-    if(!command)
-    {
-        DEBUG_PRINT("get_formatted_input: Can't save on a null command array\n");
-        return 0;
-    }
-    #endif
-
-    char c;
-
-    char *data = (char *)malloc(7);
-    int allocated_size = 7;
-
-    int cmd_part = 0;
-    int insert_index = 0;
-
-    while ((c = getc(is)) != EOF)
-    {
-        if(c == ' ')
-        {
-            //command part is ended, so we store it in cmd array and get ready to read a parameter
-            command[cmd_part] = data;
-            data[insert_index] = '\0';
-
-            cmd_part++;
-            data = NULL;
-            allocated_size = 0;
-            insert_index = 0;
-            continue;
-
-            //TODO: check if i can omit this check
-            if(cmd_part > max_size)
-            {
-                DEBUG_PRINT("get_formatted_input: Broken command, %d max_size exceded\n", max_size);
-                for(int i = 0 ; i < cmd_part; i++)
-                {
-                    free(command[i]);                   
-                }
-                free(data);
-                return 0;
-            }
-
-        }
-
-        if(c == '\n')
-        {
-            break;
-        }
-
-        if(insert_index >= allocated_size-1) // leave last char for terminator
-        {
-          allocated_size += 5;
-          data = (char *)realloc(data, allocated_size);
-        }
-
-        data[insert_index] = c;
-        insert_index++;
-    }
-
-    //final assign at line end
-    command[cmd_part] = data;
-    data[insert_index] = '\0';
-    *size = cmd_part + 1; 
-    return 1;
-}
 
 
 /****************************************
@@ -416,7 +328,6 @@ int main(int argc, char** argv)
 
     //init input data
     char *command[4];
-    int cmd_sz = 0;
 
     int exit_loop = 0;
 
@@ -438,66 +349,97 @@ int main(int argc, char** argv)
     #else
     FILE *fl = stdin
     #endif
+
+    char *buffer = malloc(sizeof(char) * INPUT_BUFFER_SIZE);
     
+    /*
+        INPUT
+    */
 
     do
-    {
-       if(get_formatted_input(fl, command, &cmd_sz, 4))
-       {
+    {   
+        size_t max_sz = INPUT_BUFFER_SIZE;
+        size_t rsz = getline(&buffer, &max_sz, fl);
 
-        //assume input is ok
-        if(command[0][0] == 'a')
+        if(buffer[0] == 'a')
         {
-            if(command[0][3] == 'e')
+            if(buffer[3] == 'e')
             {
-                //addent
+                //addent <ent>
+                command[1] = malloc(rsz-7);
+                memcpy(command[1], (buffer + 7), rsz-8);
+                command[1][rsz-8] = '\0';
                 add_entity(entities_table, command);
             }
-            else if(command[0][3] == 'r')
+            else if(buffer[3] == 'r')
             {
-                //addrel
+                //addrel <from> <to> <rel>
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces+1] =  malloc(i-last_space);
+                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces+1][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[3] =  malloc(rsz - last_space-1);
+                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
+                command[3][rsz-last_space-2] = '\0';
                 add_relation(entities_table, &relation_names, relation_table, command);
             }
-
-        } else if(command[0][0] == 'd')
+        }
+        else if(buffer[0] == 'd')
         {
-            if(command[0][3] == 'e')
+            if(buffer[3] == 'e')
             {
-                //delent
+                //delent <ent>
+                command[1] = malloc(rsz-7);
+                memcpy(command[1], (buffer + 7), rsz-8);
+                command[1][rsz-8] = '\0';
                 remove_entity(entities_table, relation_table, command);
             }
-            else if(command[0][3] == 'r')
+            else if(buffer[3] == 'r')
             {
-                //delrel
-                 remove_relation(entities_table, &relation_names, relation_table, command);
+                //delrel <from> <to> <rel>
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces+1] =  malloc(i-last_space);
+                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces+1][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[3] =  malloc(rsz - last_space-1);
+                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
+                command[3][rsz-last_space-2] = '\0';
+
+                remove_relation(entities_table, &relation_names, relation_table, command);
             }
         }
-        else if(command[0][0] == 'r')
+        else if(buffer[0] == 'r')
         {
-            //report
             report(entities_table, &relation_names, relation_table);
         }
-        else if(command[0][0] == 'e')
-        {         
-            exit_loop = 1;
-        }
-        #ifdef DEBUG
         else
         {
-            DEBUG_PRINT("%s: command not found\n", command[0]);
-            for(int i =0; i < cmd_sz; i++)
-            {
-                free(command[i]);
-            }
-            continue;
+            //end 
+            exit_loop = 1;
         }
-        #endif
 
-        free(command[0]);
-
-       }     
+        //free(command[0]);
 
     } while (!exit_loop);
+    
 
     #ifdef DEBUG
     DEBUG_PRINT("\nEntities:\n");
@@ -513,6 +455,9 @@ int main(int argc, char** argv)
     ra_clean(&relation_names);
     //rm entities
     ht_clean(entities_table);
+
+    //rm buffer
+    free(buffer);
 
     #ifdef DEBUG
     if(fl) fclose(fl);

@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 /**************************************************************************************************
  *
  *  ENTITY HASH TABLE
@@ -826,6 +825,261 @@ void rt_clean(relationTable *table)
 }
 
 
+/**************************************************************************************************
+ *
+ *  REPORT TABLE
+ * 
+ **************************************************************************************************/
+
+#define RH_HASHTABLE_SIZE_DEFAULT 37
+#define RH_HASH_PRIME 31
+
+#define RH_MAX_WORSTCASELOOKUP 10
+#define RH_MAX_WORSTCASELOOKUPCOUNT 20
+
+
+/****************************************
+ * DATA STRUCTS
+ ****************************************/
+
+//hash table item
+typedef struct s_rhItem
+{
+    htItem *to;
+    relation *rel;
+    int cout;
+
+    struct s_rhItem *next;
+} rhItem;
+
+typedef rhItem* rhItemArray;
+
+//hash table structure
+typedef struct s_reportTable
+{
+    rhItemArray *internal; // array of rtItem pointers
+    int size; // size of internal
+
+    //rebalancing factors
+    int worstLookup; //longest lookup done on the table
+    int worstLookupCount; // number of times that worstlookup is done
+} reportTable;
+
+// #define VERBODE_DEBUG
+
+
+/****************************************
+ * INIT
+ ****************************************/
+
+/**
+ * Initialize/reinitialize an hash table
+ * 
+ * @param size table size
+ * @return pointer to allocated table, NULL on error
+ */
+static inline void rh_init1(reportTable *table, int size)
+{
+
+    table->internal = (rhItemArray *)malloc(sizeof(rhItemArray) * size);
+
+    memset(table->internal, 0, sizeof(rhItemArray) * size);
+    table->size = size;
+    table->worstLookup = 0;
+    table->worstLookupCount = 0;
+}
+
+/**
+ * Create a new hasrtable
+ * 
+ * @return pointer to allocated table, NULL on error
+ */
+static inline reportTable* rh_init2()
+{
+    reportTable *table = (reportTable *)malloc(sizeof(reportTable));
+
+    rh_init1(table, RH_HASHTABLE_SIZE_DEFAULT);
+
+    return table;
+}
+
+
+/****************************************
+ * INSERTION
+ ****************************************/
+
+/**
+ * Compute hash based on table size
+ * @param key string to hash
+ * @param size table to size
+ * 
+ * @return key hash
+ */
+static inline int rh_hash(htItem* to, relation *rel, int size)
+{
+    long x = (long)to *(long)rel;
+    x = ((x >> 32) ^ x) * 0x45d9f3b;
+    x = ((x >> 32) ^ x) * 0x45d9f3b;
+    x = (x >> 32) ^ x;
+    return x % size;
+}
+
+
+/**
+ * Insert key in table (no duplicate check)
+ * 
+ * @param table hasrtable where insert is made
+ * @param item item to insert
+ */
+static inline void rh_insert1(reportTable *table, rhItem *item)
+{
+
+    int hash = rh_hash(item->to, item->rel, table->size);
+
+    if(table->internal[hash])
+    {
+        item->next = table->internal[hash];
+    }
+    else
+    {
+        item->next = NULL;
+    } 
+    
+    table->internal[hash] = item;
+}
+
+
+/**
+ * Insert key in table (no duplicate check)
+ * 
+ * @param table hasrtable where insert is made
+ * @param key key to insert
+ */
+void rh_insert2(reportTable *table, htItem* to, relation *rel)
+{
+    rhItem *item = (rhItem *)malloc(sizeof(rhItem));
+
+    item->cout = 1;
+    item->to = to;
+    item->rel = rel;
+
+    rh_insert1(table, item);
+
+}
+
+
+/****************************************
+ * RESIZE
+ ****************************************/
+
+static inline void rh_resize(reportTable *table)
+{
+    
+    int oldsize = table->size;
+    rhItemArray *old_data = table->internal;
+
+    rh_init1(table, table->size *2);
+
+
+    for(int i = 0; i < oldsize; i++)
+    {
+        rhItem  *temp = NULL, *itr = old_data[i];
+
+        while(itr != NULL)
+        {
+            temp = itr;
+            itr = itr->next;
+            rh_insert1(table, temp);
+        }
+    }
+
+    free(old_data);
+}
+
+
+/****************************************
+ * LOOKUP
+ ****************************************/
+
+/**
+ * Search for a key in an hash table
+ * If lookups are too slow, this function resizes the hash table!
+ * 
+ * @param table pointer to table where to find key
+ * @param key key to search
+ * @return rtItem pointer of found element, null if not found
+ */
+rhItem* rh_hasKey(reportTable *table, htItem* to, relation *rel)
+{
+    int hash = rh_hash(to, rel, table->size);
+    int lookup = 0;
+
+    if(table->internal[hash])
+    {
+        rhItem *itr = table->internal[hash];
+        while(itr)
+        {
+            if(itr->to == to && itr->rel == rel) return itr;
+            itr = itr->next;
+            lookup++;
+        }
+    }
+
+    //autoresize
+    if(lookup >= table->worstLookup)
+    {
+        if(lookup > RH_MAX_WORSTCASELOOKUP)
+        {
+            rh_resize(table);
+        }
+        else
+        {
+            table->worstLookupCount = lookup;
+            table->worstLookupCount++;
+            if(table->worstLookupCount > RH_MAX_WORSTCASELOOKUPCOUNT)
+            {
+                rh_resize(table);
+            }
+        }
+
+    }
+
+    return 0;
+}
+
+
+/****************************************
+ * DELETION
+ ****************************************/
+
+// this table is desegned to only do insert operation because it shoud be allocated every operation
+
+/****************************************
+ * CLEAN UP
+ ****************************************/
+
+/**
+ * Delete all allocated ram for table
+ * This function also deletes ALL key strings!
+ */
+void rh_clean(reportTable *table)
+{
+    for(int i = 0; i < table->size; i++)
+    {
+        rhItem *del = NULL, *itr = table->internal[i];
+        while (itr)
+        {
+            del = itr;
+            itr = itr->next;
+  
+            free(del);
+        }     
+    }
+
+    free(table->internal);
+    free(table);
+}
+
 
 /**************************************************************************************************
  *
@@ -1051,147 +1305,89 @@ typedef struct s_top
  */
 static inline void report(hashTable *entities, relationArray *relNames, relationTable *relations)
 {
-    // no relations
+ // no relations
     if(relNames->size < 1)
     {
         printf("none\n");
         return;
     }
 
-    //best values for relation
-    int *best_val = malloc(relNames->size * sizeof(int));
-    Top **rel_list = malloc(sizeof(Top**) * relNames->size);
+    reportTable *rep = rh_init2();
 
-    memset(best_val, 0, relNames->size * sizeof(int));
+    int *best_counts = malloc(sizeof(int) * relNames->size);
+    memset(best_counts, 0, relNames->size * sizeof(int));
+
+    Top **rel_list = malloc(sizeof(Top**) * relNames->size);
     memset(rel_list, 0, sizeof(Top**) * relNames->size);
 
-    //reuse allocated a unused items
-    Top* pool = NULL;
-    
-    int *cur_val = malloc(relNames->size * sizeof(int));
 
-    for(int i = 0; i < entities->size; i++)
+    // calculate count for every relation
+    int sz = relations->size;
+    for(int i = 0; i < sz; i++)
     {
-        htItem *ent = entities->internal[i];
-    
-        while (ent)
+        rtItem *itr = relations->internal[i];
+        rhItem *irel;
+        while(itr)
         {
-            //iterate all entities
-            memset(cur_val, 0, relNames->size * sizeof(int));
-
-            //iterate all relations and count per relation qta of ent
-            for(int j = 0; j < relations->size; j++)
+            irel = rh_hasKey(rep, itr->to, itr->rel);
+            if(irel)
             {
-                rtItem *rel = relations->internal[j];
-            
-                while (rel)
-                {                
-                    if(rel->to == ent)
-                    {
-                        cur_val[rel->rel->index] += 1;
-
-                        #ifdef REPORT
-                        if(!(rel->rel->name) || !(rel->to) || !(rel->to->data) || !(rel->from) || !(rel->from->data)) 
-                        {
-                            DEBUG_PRINT("OHU NOU");
-                        }
-                        DEBUG_PRINT("[R] %s +1 to: %s (%p), from %s (%p)\n",
-                        rel->rel->name, rel->to->data, rel->to, rel->from->data, rel->from);
-                        #endif
-                    }
-
-                    rel = rel->next;
-                } 
-
+                irel->cout += 1;
+                //update best values for relations
+                if(best_counts[itr->rel->index] < irel->cout)
+                {
+                    best_counts[itr->rel->index] = irel->cout;
+                }
+            }
+            else
+            {
+                rh_insert2(rep, itr->to, itr->rel);
+                //update best values for relations
+                if(best_counts[itr->rel->index] < 1)
+                {
+                    best_counts[itr->rel->index] = 1;
+                }
             }
 
-            //check if this ent beats a maximum for a relation
-            for(int k = 0; k < relNames->size; k++)
+            itr = itr->next;
+        }
+    }
+
+    sz = rep->size;
+    for(int i = 0; i < sz; i++)
+    {
+        rhItem *itr = rep->internal[i];
+        while (itr)
+        {
+            if(itr->cout >= best_counts[itr->rel->index])
             {
-                if(cur_val[k] > best_val[k])
+                Top *el = malloc(sizeof(Top));
+                el->who = itr->to;
+                //insert with order
+                if(rel_list[itr->rel->index] == NULL || strcmp(el->who->data, rel_list[itr->rel->index]->who->data) < 0)
                 {
-                    best_val[k] = cur_val[k];
-
-                    if(rel_list[k] == NULL)
+                    el->next = rel_list[itr->rel->index];
+                    rel_list[itr->rel->index] = el;
+                }
+                else
+                {
+                    Top *tp = rel_list[itr->rel->index];
+                    while(tp)
                     {
-                        //allocate a new element (or reuse one in pool)
-                        Top *el;
-                        if(pool == NULL)
+                        if(tp->next == NULL || strcmp(el->who->data, tp->next->who->data) < 0)
                         {
-                           el = malloc(sizeof(Top));
+                            el->next = tp->next;
+                            tp->next = el;
+                            break;
                         }
-                        else
-                        {
-                            el = pool;
-                            pool = pool->next;
-                        }
-                        el->who = ent;
-                        el->next = NULL;
-                        rel_list[k] = el;
-                    }
-                    else
-                    {
-                        rel_list[k]->who = ent; // reuse a present entry
-                        //move other allocated items to pool
-                        if(rel_list[k]->next != NULL)
-                        {
-                            //find last element
-                            Top *itr = rel_list[k]->next;
-                            while (itr->next)
-                            {
-                                itr = itr->next;
-                            }
-                            itr->next = pool;
-                            pool = rel_list[k]->next;                            
-                        }
-                        rel_list[k]->next = NULL;
+                        tp = tp->next;
                     }
                 }
-                //more entitie with same number of relations (not 0)
-                else if(cur_val[k] > 0 && cur_val[k] == best_val[k] )
-                {
-                    //allocate a new element (or reuse one in pool)
-                    Top *el;
-                    if(pool == NULL)
-                    {
-                        el = malloc(sizeof(Top));
-                    }
-                    else
-                    {
-                        el = pool;
-                        pool = pool->next;
-                    }
-
-                    el->who = ent;
-
-                    //insert in order
-                    if(rel_list[k] && strcmp(el->who->data, rel_list[k]->who->data) < 0)
-                    {
-                        el->next = rel_list[k];
-                        rel_list[k] = el;
-                    }
-                    else
-                    {
-                        Top *itr = rel_list[k];
-                        while(itr)
-                        {
-                            if(itr->next == NULL || strcmp(el->who->data, itr->next->who->data) < 0)
-                            {
-                                el->next = itr->next;
-                                itr->next = el;
-                                break;
-                            }
-                            itr = itr->next;
-                        }
-                    }
-
-                }
-                
             }
 
-            ent = ent->next;
-        } 
-
+            itr = itr->next;
+        }
+        
     }
 
     //print result
@@ -1210,7 +1406,7 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
                 printf(" %s", itr->who->data);
                 itr = itr->next;
             }
-            printf(" %d;", best_val[i]);
+            printf(" %d;", best_counts[i]);
         }
     }
 
@@ -1219,15 +1415,10 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
     else
             printf("\n");
 
-    //free shit
-    free(cur_val);
-    Top *del, *itr = pool;
-    while (itr)
-    {
-        del = itr;
-        itr = itr->next;
-        free(del);
-    }
+
+    //cleanup
+    free(best_counts);
+    Top* itr, *del;
     for(int i = 0; i < relNames->size; i++)
     {
         itr = rel_list[i];
@@ -1238,9 +1429,10 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
             free(del);
         }
     }
-    free(best_val);
     free(rel_list);
+    rh_clean(rep);
 }
+
 
 
 /****************************************
