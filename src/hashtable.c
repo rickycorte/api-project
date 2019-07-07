@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HT_HASHTABLE_SIZE_DEFAULT 37
+#define HT_HASHTABLE_SIZE_DEFAULT 1024
 #define HT_HASH_PRIME 31
 
 #define HT_MAX_WORSTCASELOOKUP 10

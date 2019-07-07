@@ -3,7 +3,7 @@
 #include <string.h>
 
 
-#define RA_DEFAULT_SIZE 10
+#define RA_DEFAULT_SIZE 20
 #define RA_DEFAULT_RESIZE 5
 
 

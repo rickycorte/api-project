@@ -9,7 +9,7 @@
  * 
  **************************************************************************************************/
 
-#define HT_HASHTABLE_SIZE_DEFAULT 37
+#define HT_HASHTABLE_SIZE_DEFAULT 200
 #define HT_HASH_PRIME 31
 
 #define HT_MAX_WORSTCASELOOKUP 10
@@ -500,7 +500,7 @@ static inline void ra_clean(relationArray *arr)
  **************************************************************************************************/
 
 
-#define RT_HASHTABLE_SIZE_DEFAULT 37
+#define RT_HASHTABLE_SIZE_DEFAULT 200
 #define RT_HASH_PRIME 31
 
 #define RT_MAX_WORSTCASELOOKUP 10
@@ -831,7 +831,7 @@ void rt_clean(relationTable *table)
  * 
  **************************************************************************************************/
 
-#define RH_HASHTABLE_SIZE_DEFAULT 37
+#define RH_HASHTABLE_SIZE_DEFAULT 200
 #define RH_HASH_PRIME 31
 
 #define RH_MAX_WORSTCASELOOKUP 10
@@ -1305,7 +1305,7 @@ typedef struct s_top
  */
 static inline void report(hashTable *entities, relationArray *relNames, relationTable *relations)
 {
- // no relations
+    // no relations
     if(relNames->size < 1)
     {
         printf("none\n");
@@ -1439,11 +1439,12 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
  * MAIN
  ****************************************/
 
+#define INPUT_BUFFER_SIZE 2048
+
 int main(int argc, char** argv)
 {
     //init input data
     char *command[4];
-    int cmd_sz = 0;
 
     int exit_loop = 0;
 
@@ -1458,63 +1459,97 @@ int main(int argc, char** argv)
     //init relation table
     relationTable *relation_table;
     relation_table = rt_init2();
+
+    char *buffer = malloc(sizeof(char) * INPUT_BUFFER_SIZE);
     
+    /*
+        INPUT
+    */
+
     do
-    {
-       if(get_formatted_input(stdin, command, &cmd_sz, 4))
-       {
-        //assume input is ok
-        if(command[0][0] == 'a')
+    {   
+        size_t max_sz = INPUT_BUFFER_SIZE;
+        size_t rsz = getline(&buffer, &max_sz, stdin);
+
+        if(buffer[0] == 'a')
         {
-            if(command[0][3] == 'e')
+            if(buffer[3] == 'e')
             {
-                //addent
+                //addent <ent>
+                command[1] = malloc(rsz-7);
+                memcpy(command[1], (buffer + 7), rsz-8);
+                command[1][rsz-8] = '\0';
                 add_entity(entities_table, command);
             }
-            else if(command[0][3] == 'r')
+            else if(buffer[3] == 'r')
             {
-                //addrel
+                //addrel <from> <to> <rel>
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces+1] =  malloc(i-last_space);
+                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces+1][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[3] =  malloc(rsz - last_space-1);
+                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
+                command[3][rsz-last_space-2] = '\0';
                 add_relation(entities_table, &relation_names, relation_table, command);
             }
-
-        } else if(command[0][0] == 'd')
+        }
+        else if(buffer[0] == 'd')
         {
-            if(command[0][3] == 'e')
+            if(buffer[3] == 'e')
             {
-                //delent
+                //delent <ent>
+                command[1] = malloc(rsz-7);
+                memcpy(command[1], (buffer + 7), rsz-8);
+                command[1][rsz-8] = '\0';
                 remove_entity(entities_table, relation_table, command);
             }
-            else if(command[0][3] == 'r')
+            else if(buffer[3] == 'r')
             {
-                //delrel
-                 remove_relation(entities_table, &relation_names, relation_table, command);
+                //delrel <from> <to> <rel>
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces+1] =  malloc(i-last_space);
+                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces+1][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[3] =  malloc(rsz - last_space-1);
+                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
+                command[3][rsz-last_space-2] = '\0';
+
+                remove_relation(entities_table, &relation_names, relation_table, command);
             }
         }
-        else if(command[0][0] == 'r')
+        else if(buffer[0] == 'r')
         {
-            //report
             report(entities_table, &relation_names, relation_table);
         }
-        else if(command[0][0] == 'e')
-        {         
-            exit_loop = 1;
-        }
-        #ifdef DEBUG
         else
         {
-            for(int i =0; i < cmd_sz; i++)
-            {
-                free(command[i]);
-            }
-            continue;
+            //end 
+            exit_loop = 1;
         }
-        #endif
 
-        free(command[0]);
-
-       }     
+        //free(command[0]);
 
     } while (!exit_loop);
+    
 
     //clean relations
     rt_clean(relation_table);
@@ -1522,6 +1557,9 @@ int main(int argc, char** argv)
     ra_clean(&relation_names);
     //rm entities
     ht_clean(entities_table);
+
+    //rm buffer
+    free(buffer);
 
     return 0;
 }

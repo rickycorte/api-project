@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RT_HASHTABLE_SIZE_DEFAULT 37
+#define RT_HASHTABLE_SIZE_DEFAULT 1024
 #define RT_HASH_PRIME 31
 
 #define RT_MAX_WORSTCASELOOKUP 10
