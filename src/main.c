@@ -178,6 +178,7 @@ typedef struct s_top
 } Top;
 
 
+#define REPORT_BUFFER_MIN_SZ 1024
 
 /**
  * Report command
@@ -273,34 +274,70 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
         
     }
 
+    char *buffer = malloc(REPORT_BUFFER_MIN_SZ);
+    int alloc_size = REPORT_BUFFER_MIN_SZ;
+    int last_used = 0;
+
     //print result
-    int print = 0;
+    int tlen = 0;
     for(int i = 0; i < relNames->size; i++)
     {
         Top *itr = rel_list[i];
         if(itr)
         {
-            if(print) printf(" ");
+            
+            if(last_used) 
+            {
+                buffer[last_used] = ' ';
+                last_used++;
+                //printf(" ");
+            }
 
-            printf("%s",relNames->relations[i]->name);
-            print = 1;
+            tlen = relNames->relations[i]->len;
+            if(last_used + tlen > alloc_size)
+            {
+                alloc_size += REPORT_BUFFER_MIN_SZ;
+                buffer = realloc(buffer, alloc_size);
+            }
+            memcpy(buffer + last_used, relNames->relations[i]->name, tlen);
+            last_used += tlen;
+
+            //printf("%s",relNames->relations[i]->name);
             while (itr)
             {
-                printf(" %s",itr->who->data);
+                tlen = itr->who->len;
+                if(last_used + tlen + 1 > alloc_size)
+                {
+                    alloc_size += REPORT_BUFFER_MIN_SZ;
+                    buffer = realloc(buffer, alloc_size);
+                }
+                buffer[last_used] = ' ';
+                memcpy(buffer+last_used+1, itr->who->data, tlen);
+                last_used += tlen + 1;
+                //printf(" %s",itr->who->data);
                 itr = itr->next;
             }
-            printf(" %d", best_counts[i]);
+
+            if(last_used + 9 > alloc_size) // approximate average number size
+            {
+                alloc_size += REPORT_BUFFER_MIN_SZ;
+                buffer = realloc(buffer, alloc_size);
+            }
+            int n = sprintf(buffer+last_used, " %d;", best_counts[i]);
+            last_used += n;
+            //printf(" %d", best_counts[i]);
         }
     }
 
 
-    if(!print)
+    if(!last_used)
         printf("none\n");
     else
-        printf("\n");
+        printf("%s\n",buffer);
 
     //cleanup
     free(best_counts);
+    free(buffer);
     Top* itr, *del;
     for(int i = 0; i < relNames->size; i++)
     {
