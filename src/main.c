@@ -30,24 +30,25 @@
  * add a new entity to the hashtable
  * 
  * @param table hastable where to insert
- * @param command source where grab data (unused parts are freed except command[0])
+ * @param who entity to add, don't free the allocation, from the call its handled by this function
+ * @param who_sz precalculated lenght of who str
  */
-static inline void add_entity(hashTable *table, char **command)
+static inline void add_entity(hashTable *table, char *who, int who_sz)
 {
     #ifdef OPERATIONS
-    DEBUG_PRINT(">  [Attempt] Create entity: %s\n", command[1]);
+    DEBUG_PRINT(">  [Attempt] Create entity: %s\n", who);
     #endif
-    if(!ht_hasKey(table, command[1]))
+    if(!ht_hasKey(table, who))
     {
-        ht_insert2(table, command[1]);
+        ht_insert2(table, who, who_sz);
         //DEBUG_PRINT("Added %s\n", command[1]);
     }
     else
     {
         #ifdef OPERATIONS
-        DEBUG_PRINT(" / Duplicate key for %s\n", command[1]);
+        DEBUG_PRINT(" / Duplicate key for %s\n", who);
         #endif
-        free(command[1]);
+        free(who);
     }
 }
 
@@ -56,28 +57,28 @@ static inline void add_entity(hashTable *table, char **command)
  * remove a entity from the hashtable
  * 
  * @param table hastable where to remove
- * @param command source where grab data (unused parts are freed except command[0])
+ * @param who entity to add, don't free the allocation, from the call its handled by this function
  */
-static inline void remove_entity(hashTable *table,relationTable *relations, char **command)
+static inline void remove_entity(hashTable *table, relationTable *relations,  char *who)
 {
     #ifdef OPERATIONS
-    DEBUG_PRINT(">  [Attempt] Delete entity: %s\n", command[1]);
+    DEBUG_PRINT(">  [Attempt] Delete entity: %s\n", who);
     #endif
-    htItem *rm = ht_hasKey(table,command[1]);
+    htItem *rm = ht_hasKey(table, who);
     if(rm)
     {
         rt_removeAll_for(relations, rm);
-        ht_remove(table, command[1]);
+        ht_remove(table, who);
     }
     else
     {
         #ifdef OPERATIONS
-        DEBUG_PRINT(" / No key for %s\n", command[1]);
+        DEBUG_PRINT(" / No key for %s\n", who);
         #endif
     }
     //DEBUG_PRINT("Removed %s\n", command[1]);
     
-    free(command[1]);
+    free(who);
 }
 
 
@@ -92,28 +93,29 @@ static inline void remove_entity(hashTable *table,relationTable *relations, char
  * @param entities entities hash table
  * @param relNames relations array
  * @param relations relations hash table
- * @param command source where grab data (unused parts are freed except command[0])
+ * @param command source where grab data (source - dest -rel)
+ * @param rel_sz lengh of relation str
  */
-static inline void add_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
+static inline void add_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command, int rel_sz)
 {
     #ifdef OPERATIONS
-    DEBUG_PRINT(">  [Attempt] Create relation from: %s to: %s rel: %s\n", command[1], command[2], command[3]);
+    DEBUG_PRINT(">  [Attempt] Create relation from: %s to: %s rel: %s\n", command[0], command[1], command[2]);
     #endif
-    htItem *source = ht_hasKey(entities, command[1]);
-    htItem *dest = ht_hasKey(entities, command[2]);
+    htItem *source = ht_hasKey(entities, command[0]);
+    htItem *dest = ht_hasKey(entities, command[1]);
+    free(command[0]);
     free(command[1]);
-    free(command[2]);
     if(source && dest)
     {
         //check if the relation has just been created
-        relation *rel = ra_find2(relNames, command[3]);
+        relation *rel = ra_find2(relNames, command[2]);
         if(rel)
         {
-            free(command[3]);
+            free(command[2]);
         }
         else
         {
-            rel = ra_insert(relNames, command[3]);
+            rel = ra_insert(relNames, command[2], rel_sz);
         }
 
         //insert relelation in rel table
@@ -124,7 +126,7 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, re
     }
     else
     {
-        free(command[3]);
+        free(command[2]);
     }
 }
 
@@ -135,21 +137,21 @@ static inline void add_relation(hashTable *entities, relationArray *relNames, re
  * @param entities entities hash table
  * @param relNames relations array
  * @param relations relations hash table
- * @param command source where grab data (unused parts are freed except command[0])
+ * @param command source where grab data (source - dest -rel)
  */
 static inline void remove_relation(hashTable *entities, relationArray *relNames, relationTable *relations, char **command)
 {
     #ifdef OPERATIONS
-    DEBUG_PRINT(">  [Attempt] Delete relation from: %s to: %s rel: %s\n", command[1], command[2], command[3]);
+    DEBUG_PRINT(">  [Attempt] Delete relation from: %s to: %s rel: %s\n", command[0], command[1], command[2]);
     #endif
-    htItem *source = ht_hasKey(entities, command[1]);
-    htItem *dest = ht_hasKey(entities, command[2]);
+    htItem *source = ht_hasKey(entities, command[0]);
+    htItem *dest = ht_hasKey(entities, command[1]);
+    free(command[0]);
     free(command[1]);
-    free(command[2]);
     if(source && dest)
     {
         //check if the relation has just been created
-        relation *rel = ra_find2(relNames, command[3]);
+        relation *rel = ra_find2(relNames, command[2]);
 
         //search and delete relation (not in)
         if(rel)
@@ -160,7 +162,7 @@ static inline void remove_relation(hashTable *entities, relationArray *relNames,
 
     }
     
-    free(command[3]);
+    free(command[2]);
 }
 
 
@@ -174,6 +176,7 @@ typedef struct s_top
     htItem *who;
     struct s_top *next;
 } Top;
+
 
 
 /**
@@ -279,22 +282,22 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
         {
             if(print) printf(" ");
 
-            printf("%s", relNames->relations[i]->name);
+            printf("%s",relNames->relations[i]->name);
             print = 1;
             while (itr)
             {
-                printf(" %s", itr->who->data);
+                printf(" %s",itr->who->data);
                 itr = itr->next;
             }
-            printf(" %d;", best_counts[i]);
+            printf(" %d", best_counts[i]);
         }
     }
+
 
     if(!print)
         printf("none\n");
     else
-            printf("\n");
-
+        printf("\n");
 
     //cleanup
     free(best_counts);
@@ -321,13 +324,12 @@ static inline void report(hashTable *entities, relationArray *relNames, relation
 
 int main(int argc, char** argv)
 {
-
     #ifdef DEBUG
     double start_tm = ns();
     #endif
 
     //init input data
-    char *command[4];
+    char *command[3];
 
     int exit_loop = 0;
 
@@ -366,10 +368,10 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //addent <ent>
-                command[1] = malloc(rsz-7);
-                memcpy(command[1], (buffer + 7), rsz-8);
-                command[1][rsz-8] = '\0';
-                add_entity(entities_table, command);
+                command[0] = malloc(rsz-7);
+                memcpy(command[0], (buffer + 7), rsz-8);
+                command[0][rsz-8] = '\0';
+                add_entity(entities_table, command[0], rsz-8);
             }
             else if(buffer[3] == 'r')
             {
@@ -380,17 +382,17 @@ int main(int argc, char** argv)
                 {
                     if(buffer[i] == ' ')
                     {
-                        command[spaces+1] =  malloc(i-last_space);
-                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces+1][i-last_space-1] = '\0';
+                        command[spaces] =  malloc(i-last_space);
+                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces][i-last_space-1] = '\0';
                         last_space = i;
                         spaces++;
                     }
                 }
-                command[3] =  malloc(rsz - last_space-1);
-                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
-                command[3][rsz-last_space-2] = '\0';
-                add_relation(entities_table, &relation_names, relation_table, command);
+                command[2] =  malloc(rsz - last_space-1);
+                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
+                command[2][rsz-last_space-2] = '\0';
+                add_relation(entities_table, &relation_names, relation_table, command, rsz-last_space-2);
             }
         }
         else if(buffer[0] == 'd')
@@ -398,10 +400,10 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //delent <ent>
-                command[1] = malloc(rsz-7);
-                memcpy(command[1], (buffer + 7), rsz-8);
-                command[1][rsz-8] = '\0';
-                remove_entity(entities_table, relation_table, command);
+                command[0] = malloc(rsz-7);
+                memcpy(command[0], (buffer + 7), rsz-8);
+                command[0][rsz-8] = '\0';
+                remove_entity(entities_table, relation_table, command[0]);
             }
             else if(buffer[3] == 'r')
             {
@@ -412,16 +414,16 @@ int main(int argc, char** argv)
                 {
                     if(buffer[i] == ' ')
                     {
-                        command[spaces+1] =  malloc(i-last_space);
-                        memcpy(command[spaces+1], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces+1][i-last_space-1] = '\0';
+                        command[spaces] =  malloc(i-last_space);
+                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces][i-last_space-1] = '\0';
                         last_space = i;
                         spaces++;
                     }
                 }
-                command[3] =  malloc(rsz - last_space-1);
-                memcpy(command[3], (buffer + last_space+1), rsz-last_space-2);
-                command[3][rsz-last_space-2] = '\0';
+                command[2] =  malloc(rsz - last_space-1);
+                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
+                command[2][rsz-last_space-2] = '\0';
 
                 remove_relation(entities_table, &relation_names, relation_table, command);
             }

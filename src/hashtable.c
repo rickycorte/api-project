@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HT_HASHTABLE_SIZE_DEFAULT 1024
+#define HT_HASHTABLE_SIZE_DEFAULT 2048
 #define HT_HASH_PRIME 31
 
 #define HT_MAX_WORSTCASELOOKUP 10
@@ -18,6 +18,7 @@
 typedef struct s_htItem
 {
     char *data;
+    int len;
     struct s_htItem *next;
 } htItem;
 
@@ -230,8 +231,9 @@ static inline void ht_insert1(hashTable *table, htItem *item)
  * 
  * @param table hashtable where insert is made
  * @param key key to insert
+ * @param len key lenght
  */
-void ht_insert2(hashTable *table, char *key)
+void ht_insert2(hashTable *table, char *key, int len)
 {
     #ifdef DEBUG
     if(!key)
@@ -252,6 +254,7 @@ void ht_insert2(hashTable *table, char *key)
     #endif
 
     item->data = key;
+    item->len = len;
 
     ht_insert1(table, item);
 

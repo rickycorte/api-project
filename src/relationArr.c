@@ -3,7 +3,7 @@
 #include <string.h>
 
 
-#define RA_DEFAULT_SIZE 20
+#define RA_DEFAULT_SIZE 100
 #define RA_DEFAULT_RESIZE 5
 
 
@@ -15,6 +15,7 @@ typedef struct s_relation
 {
     char* name;
     int index;
+    int len;
 } relation;
 
 typedef struct s_relationArray
@@ -60,8 +61,9 @@ static inline void ra_init(relationArray *arr)
  * 
  * @param arr array where to insert
  * @param rel relation to intert
+ * @param len lenght of rel
  */
-static inline relation *ra_insert(relationArray *arr, char *rel)
+static inline relation *ra_insert(relationArray *arr, char *rel, int len)
 {
     #ifdef DEBUG
     if(!arr)
@@ -78,6 +80,7 @@ static inline relation *ra_insert(relationArray *arr, char *rel)
 
     relation *irel = malloc(sizeof(relation));
     irel->name = rel;
+    irel->len = len;
 
     //resize if no more space is available
     if(arr->size + 1 > arr->allocated_size)
