@@ -11,9 +11,11 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Default build type is set to DEBUG" FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
+include_directories(src)
 
 add_executable(cetrioli
-    src/main.c)
+    src/main.c
+    src/entity_tree.c)
 
 
 add_custom_target(run COMMAND cd bin && ./cetrioli -c DEPENDS cetrioli)
