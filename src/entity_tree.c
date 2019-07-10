@@ -9,6 +9,8 @@
 static EntityNode sentinel = { 0, ET_BLACK, 0, ETNIL, ETNIL };
 
 
+static EntityNode* et_liear_stack[30]; // can iterate tree with 2^30 elements
+
 EntityTree *et_init()
 {
     EntityTree *t = malloc(sizeof(EntityTree));
@@ -357,13 +359,15 @@ void et_delete(EntityTree *tree, char *entity_name)
 
     if(y != z)
     {
+        char *temp = z->name;
         z->name = y->name;
+        y->name = temp;
     }
 
     if(y->color == ET_BLACK)
         et_deleteFix(tree, x);
 
-
+    free(y->name);
     free(y);
 }
 
@@ -378,6 +382,31 @@ void et_delete(EntityTree *tree, char *entity_name)
 void et_clean(EntityTree *tree)
 {
 
+    int used = 1;
+    et_liear_stack[0] = tree->root;
+    EntityNode *p;
+
+    while(used > 0) // stack not empty
+    {
+        p = et_liear_stack[used-1];
+        used--;
+
+        if(p->right != ETNIL)
+        {
+            et_liear_stack[used] = p->right;
+            used++;
+        }
+        if(p->left != ETNIL)
+        {
+            et_liear_stack[used] = p->left;
+            used++;
+        }
+
+        free(p->name);
+        free(p);
+
+    }
+
 }
 
 
@@ -390,6 +419,7 @@ void et_clean(EntityTree *tree)
 
 #define KRED  "\x1B[31m"
 #define KBLK  "\x1B[37m"
+#define KRESET "\033[0m"
 
 // compute height of the tree
 int et_getHeight(EntityNode *root) {
@@ -417,7 +447,7 @@ void et_print_sub_tree(EntityNode *tree, int rb_height)
     {
         printf("          ");
     }
-    printf("%s%03s ----+\n", tree->color? KRED : KBLK, tree->name);
+    printf("%s%03s ----+%s\n", tree->color? KRED : KBLK, tree->name, KRESET);
     et_print_sub_tree(tree->right, rb_height-1);
 }
 

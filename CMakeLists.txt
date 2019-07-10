@@ -17,5 +17,10 @@ add_executable(cetrioli
     src/main.c
     src/entity_tree.c)
 
+set(
+        CMAKE_RUNTIME_OUTPUT_DIRECTORY
+        ${CMAKE_HOME_DIRECTORY}/bin
+)
+
 
 add_custom_target(run COMMAND cd bin && ./cetrioli -c DEPENDS cetrioli)

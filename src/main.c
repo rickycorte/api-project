@@ -7,10 +7,9 @@
 #define INPUT_BUFFER_SIZE 1024
 
 #ifdef DEBUG
-# define DEBUG_PRINT printf 
-# define READ_FROM_FILE
+    #define DEBUG_PRINT printf
 #else
-# define DEBUG_PRINT(...)
+    #define DEBUG_PRINT(...)
 #endif
 
 #include "bench.c"
@@ -53,6 +52,10 @@ int main(int argc, char** argv)
 
     et_delete(entities, "g");
     et_print(entities->root);
+
+
+    et_clean(entities);
+    free(entities);
 
     exit(0);
 
