@@ -88,64 +88,63 @@ static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
 
 static inline void et_insertFix(EntityTree *tree, EntityNode *x)
 {
-    EntityNode *y, *grandParent;
+    EntityNode *y;
 
     while(x != tree->root && x->parent->color == ET_RED)
     {
-        grandParent = x->parent->parent;
 
-        if(x->parent == grandParent->left)
+        if(x->parent == x->parent->parent->left)
         {
-            y = grandParent->right;
+            y = x->parent->parent->right;
 
             if(y->color == ET_RED)
             {
                 //colorflip
                 x->parent->color = ET_BLACK;
                 y->color = ET_BLACK;
-                grandParent->color = ET_RED;
+                x->parent->parent->color = ET_RED;
 
                 x = x->parent->parent;
             }
             else
             {
-                if(x == x->parent->parent)
+                if(x == x->parent->right)
                 {
                     x = x->parent;
                     et_leftRotation(tree, x);
                 }
 
                 x->parent->color = ET_BLACK;
-                grandParent->color = ET_RED;
+                x->parent->parent->color = ET_RED;
 
-                et_rightRotation(tree, grandParent);
+                et_rightRotation(tree, x->parent->parent);
             }
         }
         else
         {
-            y = grandParent->left;
+            y = x->parent->parent->left;
 
             if(y->color == ET_RED)
             {
                 //colorflip
                 x->parent->color = ET_BLACK;
                 y->color = ET_BLACK;
-                grandParent->color = ET_RED;
+                x->parent->parent->color = ET_RED;
 
                 x = x->parent->parent;
             }
             else
             {
-                if(x == x->parent->parent)
+                if(x == x->parent->left)
                 {
                     x = x->parent;
                     et_rightRotation(tree, x);
                 }
 
                 x->parent->color = ET_BLACK;
-                grandParent->color = ET_RED;
+                x->parent->parent->color = ET_RED;
 
-                et_leftRotation(tree, grandParent);
+                et_leftRotation(tree, x->parent->parent);
             }
         }
     }
@@ -155,40 +154,48 @@ static inline void et_insertFix(EntityTree *tree, EntityNode *x)
 
 
 
-EntityNode *et_insert(EntityTree *tree, char *entity_name)
+int et_insert(EntityTree *tree, char *entity_name)
 {
+    // not null root here
+    int cmp = 0;
+    EntityNode *parent = NULL, *itr = tree->root;
+
+    while(itr && itr != ETNIL)
+    {
+        cmp = strcmp(entity_name, itr->name);
+
+        if(cmp == 0) // found duplicate
+        {
+            return 0;
+        }
+
+        parent = itr;
+        itr = (cmp > 0) ? itr->right : itr->left;
+    }
+
     EntityNode *node = malloc(sizeof(EntityNode));
     node->name = entity_name;
     node->color = ET_RED; //base colo res
     node->left = ETNIL;
     node->right = ETNIL;
+    node->parent = parent;
 
-    if(!tree->root || tree->root == ETNIL)
+    if(parent)
     {
-        node->parent = NULL;
-        node->color = ET_BLACK;
-        tree->root = node;
-        return node;
+        if (cmp > 0)
+            parent->right = node;
+        else
+            parent->left = node;
     }
-
-    // not null root here
-    int cmp = 0;
-    EntityNode *last, *itr = tree->root;
-    while(itr != ETNIL)
-    {
-        last = itr;
-        cmp = strcmp(entity_name, itr->name) > 0;
-        itr = (cmp) ? itr->right : itr->left;
-    }
-    node->parent = last;
-
-    if(cmp)
-        last->right = node;
     else
-        last->left = node;
+    {
+        tree->root = node;
+    }
 
     //fixup
     et_insertFix(tree, node);
+
+    return 1;
 }
 
 
@@ -202,7 +209,7 @@ EntityNode *et_insert(EntityTree *tree, char *entity_name)
 EntityNode *et_search(EntityTree *tree, char *entity_name)
 {
     EntityNode *itr = tree->root;
-    while(itr != ETNIL)
+    while(itr && itr != ETNIL)
     {
         int cmp = strcmp(entity_name, itr->name);
         if(cmp == 0)
@@ -462,5 +469,37 @@ void et_print(EntityNode *root)
     int rb_height = et_getHeight(root);
     printf("rb height: %d\n", rb_height);
     et_print_sub_tree(root, rb_height);
+
+}
+
+
+void et_count(EntityTree *tree)
+{
+
+    int count = 0;
+    int used = 1;
+    et_liear_stack[0] = tree->root;
+    EntityNode *p;
+
+    while(used > 0) // stack not empty
+    {
+        p = et_liear_stack[used-1];
+        used--;
+
+        if(p->right != ETNIL)
+        {
+            et_liear_stack[used] = p->right;
+            used++;
+        }
+        if(p->left != ETNIL)
+        {
+            et_liear_stack[used] = p->left;
+            used++;
+        }
+
+        count++;
+    }
+
+    printf("Tree elements: %d", count);
 
 }

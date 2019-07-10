@@ -29,36 +29,6 @@ int main(int argc, char** argv)
 
     EntityTree *entities = et_init();
 
-    for(int i = 0; i < 10; i++)
-    {
-        char *str = malloc(2);
-        str[0] = 'a'+ i; str[1] = '\0';
-        et_insert(entities, str);
-    }
-
-    et_print(entities->root);
-
-    et_delete(entities, "j");
-    et_print(entities->root);
-
-    et_delete(entities, "b");
-    et_print(entities->root);
-
-    et_delete(entities, "d");
-    et_print(entities->root);
-
-    et_delete(entities, "a");
-    et_print(entities->root);
-
-    et_delete(entities, "g");
-    et_print(entities->root);
-
-
-    et_clean(entities);
-    free(entities);
-
-    exit(0);
-
 
 
     #ifdef DEBUG
@@ -97,7 +67,11 @@ int main(int argc, char** argv)
                 memcpy(command[0], (buffer + 7), rsz-8);
                 command[0][rsz-8] = '\0';
 
-                
+                if(!et_insert(entities, command[0]))
+                {
+                    free(command[0]);
+                }
+
             }
             else if(buffer[3] == 'r')
             {
@@ -130,6 +104,9 @@ int main(int argc, char** argv)
                 command[0] = malloc(rsz-7);
                 memcpy(command[0], (buffer + 7), rsz-8);
                 command[0][rsz-8] = '\0';
+
+                et_delete(entities, command[0]);
+                free(command[0]);
                 
 
             }
@@ -169,10 +146,13 @@ int main(int argc, char** argv)
 
     } while (!exit_loop);
     
+    et_count(entities);
 
     //rm buffer
     free(buffer);
 
+    et_clean(entities);
+    free(entities);
 
     #ifdef DEBUG
     if(fl) fclose(fl);

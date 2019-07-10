@@ -35,13 +35,13 @@ EntityTree *et_init();
 
 
 /**
- * Insert a new entity in the tree (no duplicate check)
+ * Insert a new entity in the tree (duplicate check)
  *
  * @param tree tree where to insert
  * @param entity_name new entity to insert
- * @return pointer to new inserted node
+ * @return 1 if inserted a new node, 0 if duplicate
  */
-EntityNode *et_insert(EntityTree *tree, char *entity_name);
+int et_insert(EntityTree *tree, char *entity_name);
 
 
 /**
@@ -73,7 +73,11 @@ void et_delete(EntityTree *tree, char *entity_name);
 void et_clean(EntityTree *tree);
 
 
+//DEBUG
+
 void et_print(EntityNode *root);
+
+void et_count(EntityTree *tree);
 
 #endif
 
