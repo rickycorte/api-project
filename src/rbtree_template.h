@@ -3,9 +3,20 @@
 // int comparator(data_type x, data_type y)
 // void deallocator(in_data data)
 
-#include <stdlib.h>
 
-#define MAKE_TREE(pre, name, data_type, in_data, allocator, comparator, deallocator, null_in_data)  \
+/**
+ * RB tree implamentation definitions
+ * pre : function prefix
+ * name : tree/node name
+ * data_type: internal node data
+ * in_data_args : declaration of init/search arguments
+ * in_data_call : use of in_data args
+ * allocator : data_type allocator( in_data_args ) called with in_data_call
+ * comparator : data_type int comparator(data_type, in_data_args ) called with in_data_call (comaprator should inverse the result)
+ * deallocator : void deallocator(data_type ) called with in_data_call
+ * null_in_data default initializer for data_type
+ */
+#define MAKE_TREE(pre, name, data_type, in_data_args, in_data_call, allocator, comparator, deallocator, null_in_data)  \
  \
 typedef struct s_##name##Node  \
 {  \
@@ -144,14 +155,14 @@ static inline void  pre##_insertFix(name##Tree *tree, name##Node *x) \
  \
  \
  \
-name##Node * pre##_insert(name##Tree *tree, in_data data, int *inserted)  \
+name##Node * pre##_insert(name##Tree *tree, in_data_args, int *inserted)  \
 {  \
     int cmp = 0; \
     name##Node *parent = NULL, *itr = tree->root; \
  \
     while(itr && itr != & pre##_sentinel) \
     { \
-        cmp = comparator (data, itr->data); \
+        cmp = comparator (itr->data, in_data_call); \
  \
         if(cmp == 0)  \
         { \
@@ -164,7 +175,7 @@ name##Node * pre##_insert(name##Tree *tree, in_data data, int *inserted)  \
     } \
  \
     name##Node *node = malloc(sizeof(name##Node)); \
-    node->data = allocator (data); \
+    node->data = allocator ( in_data_call ); \
     node->color = 1; \
     node->left = & pre##_sentinel; \
     node->right = & pre##_sentinel; \
@@ -189,12 +200,12 @@ name##Node * pre##_insert(name##Tree *tree, in_data data, int *inserted)  \
  \
  \
  \
-name##Node * pre##_search(name##Tree *tree, in_data data) \
+name##Node * pre##_search(name##Tree *tree, in_data_args) \
 { \
     name##Node *itr = tree->root; \
     while(itr && itr != & pre##_sentinel) \
     { \
-        int cmp = comparator (data, itr->data); \
+        int cmp = comparator (itr->data, in_data_call); \
         if(cmp == 0) \
             break; \
         else \
@@ -353,6 +364,8 @@ void  pre##_delete(name##Tree *tree,  name##Node *z) \
  \
     deallocator (y->data); \
     free(y); \
+    if(tree->root == & pre##_sentinel) \
+        tree->root = NULL; \
 } \
  \
 void  pre##_clean(name##Tree *tree) \
@@ -360,6 +373,7 @@ void  pre##_clean(name##Tree *tree) \
  \
     int used = 1; \
      pre##_liear_stack[0] = tree->root; \
+     if(! pre##_liear_stack[0]) return; \
     name##Node *p; \
  \
     while(used > 0) \
@@ -414,11 +428,3 @@ count++; \
 printf("Tree elements: %d", count); \
 \
 }
-
-/*
-static inline int allocate(int data) { return  data; }
-static inline int compare(int x, int y) { return  x > y; }
-static inline void deallocate(int data) {  }
-
-MAKE_TREE(test, Test, int, int, allocate, compare, deallocate, 0)
-*/

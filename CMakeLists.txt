@@ -22,5 +22,8 @@ set(
         ${CMAKE_HOME_DIRECTORY}/bin
 )
 
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  target_compile_definitions(cetrioli PUBLIC DEBUG=1)
+endif()
 
 add_custom_target(run COMMAND cd bin && ./cetrioli -c DEPENDS cetrioli)
