@@ -15,7 +15,7 @@ include_directories(src)
 
 add_executable(cetrioli
     src/main.c
-        src/dio_cane.h)
+        src/rbtree_template.h)
 
 set(
         CMAKE_RUNTIME_OUTPUT_DIRECTORY

@@ -307,9 +307,8 @@ static inline void  pre##_deleteFix(name##Tree *tree, name##Node *x) \
 } \
  \
  \
-void  pre##_delete(name##Tree *tree,  in_data data) \
+void  pre##_delete(name##Tree *tree,  name##Node *z) \
 { \
-    name##Node *z =  pre##_search(tree, data); \
     if(!z) \
         return; \
  \

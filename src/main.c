@@ -16,11 +16,18 @@
 
 //#include "entity_tree.h"
 
-#include "dio_cane.h"
+#include "rbtree_template.h"
 
-static inline char *et_allocate(char *data) { return data; }
-static inline int et_compare(char* x, char *y) { return  strcmp(x, y); }
-static inline void et_deallocate(char *data) {  free(data); }
+#ifdef DEBUG
+    #define FORCE_INLINE __attribute__((always_inline))
+#else
+#define FORCE_INLINE inline
+#endif
+
+
+static FORCE_INLINE char *et_allocate(char *data)  { return data; }
+static FORCE_INLINE int et_compare(char* x, char *y) { return  strcmp(x, y); }
+static FORCE_INLINE void et_deallocate(char *data) {  free(data); }
 
 MAKE_TREE(et, Entity, char *, char *, et_allocate, et_compare, et_deallocate, 0)
 
@@ -111,7 +118,11 @@ int main(int argc, char** argv)
                 memcpy(command[0], (buffer + 7), rsz-8);
                 command[0][rsz-8] = '\0';
 
-                et_delete(entities, command[0]);
+                EntityNode *res = et_search(entities, command[0]);
+                if(res)
+                {
+                    et_delete(entities, res);
+                }
                 free(command[0]);
                 
 
