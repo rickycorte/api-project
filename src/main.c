@@ -14,11 +14,15 @@
 
 #include "bench.c"
 
-#include "entity_tree.h"
+//#include "entity_tree.h"
 
+#include "dio_cane.h"
 
+static inline char *et_allocate(char *data) { return data; }
+static inline int et_compare(char* x, char *y) { return  strcmp(x, y); }
+static inline void et_deallocate(char *data) {  free(data); }
 
-
+MAKE_TREE(et, Entity, char *, char *, et_allocate, et_compare, et_deallocate, 0)
 
 /****************************************
  * MAIN
@@ -67,7 +71,9 @@ int main(int argc, char** argv)
                 memcpy(command[0], (buffer + 7), rsz-8);
                 command[0][rsz-8] = '\0';
 
-                if(!et_insert(entities, command[0]))
+                int res;
+                et_insert(entities, command[0], &res);
+                if(!res)
                 {
                     free(command[0]);
                 }
