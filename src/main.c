@@ -19,7 +19,7 @@
 #include "rbtree_template.h"
 
 #ifdef DEBUG
-    #define FORCE_INLINE __attribute__((always_inline))
+    #define FORCE_INLINE __attribute__((always_inline)) inline
 #else
 #define FORCE_INLINE inline
 #endif
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
             {
                 //addrel <from> <to> <rel>
 
-                get_command_parameters(buffer, rsz, &command);
+                get_command_parameters(buffer, rsz, command);
 
                 // do insertion if possibile
                 int res = 0;
@@ -307,6 +307,11 @@ int main(int argc, char** argv)
         }
 
     } while (!exit_loop);
+
+    for(int i =0; i < 10000; i++)
+    {
+        rst_count(relations);
+    }
 
     //rm buffer
     free(buffer);

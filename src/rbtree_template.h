@@ -425,6 +425,6 @@ used++; \
 count++; \
 } \
 \
-printf("Tree elements: %d", count); \
+printf("Tree elements: %d\n", count); \
 \
 }

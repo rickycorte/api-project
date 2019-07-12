@@ -57,7 +57,7 @@ RelationStorageTree *rst_init()
     t->root = NULL;
     return t;
 }
-static RelationStorageNode rst_sentinel = {{0, 0, 0, 0}, 0, 0, &rst_sentinel, &rst_sentinel};
+static RelationStorageNode rst_sentinel = {0, 0, 0, &rst_sentinel, &rst_sentinel};
 static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y = x->right;
@@ -373,5 +373,5 @@ void rst_count(RelationStorageTree *tree)
         }
         count++;
     }
-    printf("Tree elements: %d", count);
+    printf("Tree elements: %d\n", count);
 }
