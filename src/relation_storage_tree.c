@@ -29,7 +29,6 @@ static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel)
     dt->from = from;
     dt->to = to;
     dt->rel = rel;
-
     return dt;
 }
 

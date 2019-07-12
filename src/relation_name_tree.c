@@ -7,13 +7,17 @@ typedef struct s_RelationNameNode
 {
     char *data;
     int color;
+    int id;
     struct s_RelationNameNode *parent, *right, *left;
 } RelationNameNode;
 typedef struct
 {
+    int count;
     RelationNameNode *root;
 } RelationNameTree;
+
 static RelationNameNode *rel_liear_stack[30];
+
 RelationNameTree *rel_init()
 {
     RelationNameTree *t = malloc(sizeof(RelationNameTree));
@@ -140,6 +144,10 @@ RelationNameNode *rel_insert(RelationNameTree *tree, char *relation, int *insert
     node->left = &rel_sentinel;
     node->right = &rel_sentinel;
     node->parent = parent;
+    node->id = tree->count;
+
+    tree->count += 1;
+
     if (parent)
     {
         if (cmp > 0)
@@ -278,6 +286,7 @@ void rel_delete(RelationNameTree *tree, RelationNameNode *z)
         char *temp = z->data;
         z->data = y->data;
         y->data = temp;
+        z->id = y->id;
     }
     if (y->color == 0)
         rel_deleteFix(tree, x);
