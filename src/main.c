@@ -146,6 +146,40 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
 
 
 /****************************************
+ * Parse
+ ****************************************/
+
+static inline char* get_entity(char * buffer, int buff_sz)
+{
+    char *ent = malloc(buff_sz-7);
+    memcpy(ent, (buffer + 7), buff_sz-8);
+    buffer[buff_sz-8] = '\0';
+
+    return ent;
+}
+
+
+static inline void get_command_parameters(char *buffer, int buff_sz, char **command)
+{
+    int spaces = 0;
+    int last_space = 6; //position of the first space
+    for(int i = 7; i < buff_sz && spaces < 2; i++)
+    {
+        if(buffer[i] == ' ')
+        {
+            command[spaces] =  malloc(i-last_space);
+            memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
+            command[spaces][i-last_space-1] = '\0';
+            last_space = i;
+            spaces++;
+        }
+    }
+    command[2] =  malloc(buff_sz - last_space-1);
+    memcpy(command[2], (buffer + last_space+1), buff_sz-last_space-2);
+    command[2][buff_sz-last_space-2] = '\0';
+}
+
+/****************************************
  * MAIN
  ****************************************/
 
@@ -188,9 +222,7 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //addent <ent>
-                command[0] = malloc(rsz-7);
-                memcpy(command[0], (buffer + 7), rsz-8);
-                command[0][rsz-8] = '\0';
+                command[0] =  get_entity(buffer, rsz);
 
                 int res;
                 et_insert(entities, command[0], &res);
@@ -203,22 +235,8 @@ int main(int argc, char** argv)
             else if(buffer[3] == 'r')
             {
                 //addrel <from> <to> <rel>
-                int spaces = 0;
-                int last_space = 6; //position of the first space
-                for(int i = 7; i < rsz && spaces < 2; i++)
-                {
-                    if(buffer[i] == ' ')
-                    {
-                        command[spaces] =  malloc(i-last_space);
-                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces][i-last_space-1] = '\0';
-                        last_space = i;
-                        spaces++;
-                    }
-                }
-                command[2] =  malloc(rsz - last_space-1);
-                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
-                command[2][rsz-last_space-2] = '\0';
+
+                get_command_parameters(buffer, rsz, &command);
 
                 // do insertion if possibile
                 int res = 0;
@@ -248,9 +266,7 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //delent <ent>
-                command[0] = malloc(rsz-7);
-                memcpy(command[0], (buffer + 7), rsz-8);
-                command[0][rsz-8] = '\0';
+                command[0] =  get_entity(buffer, rsz);
 
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
@@ -265,40 +281,18 @@ int main(int argc, char** argv)
             else if(buffer[3] == 'r')
             {
                 //delrel <from> <to> <rel>
-                int spaces = 0;
-                int last_space = 6; //position of the first space
-                for(int i = 7; i < rsz && spaces < 2; i++)
-                {
-                    if(buffer[i] == ' ')
-                    {
-                        command[spaces] =  malloc(i-last_space);
-                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces][i-last_space-1] = '\0';
-                        last_space = i;
-                        spaces++;
-                    }
-                }
-                command[2] =  malloc(rsz - last_space-1);
-                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
-                command[2][rsz-last_space-2] = '\0';
+                get_command_parameters(buffer, rsz, &command);
 
-
-                // do deletion if possibile
-                EntityNode *source = et_search(entities, command[0]);
-                if(source)
+                RelationStorageNode *del = rst_search(relations, command[0], command[1], command[2]);
+                if(del)
                 {
-                    EntityNode *dest = et_search(entities, command[1]);
-                    if(dest)
-                    {
-                        rst_delete(relations, rst_search(relations, source->data, dest->data, command[2]));
-                    }
+                    rst_delete(relations, del);
                 }
 
                 free(command[0]);
                 free(command[1]);
-                    free(command[2]);
+                free(command[2]);
 
-                
             }
         }
         else if(buffer[0] == 'r')

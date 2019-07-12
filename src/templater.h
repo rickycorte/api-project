@@ -25,8 +25,7 @@ static inline RelationStorageData *rst_allocate(char *from, char* to, char* rel)
 
 static inline int rst_compare(RelationStorageData * x, char *from, char* to, char* rel)
 {
-    if(from == x->from && to == x->to && rel == x->rel)
-        return 0;
+
 
     int res = from > x->from && to > x->to && rel > x->rel;
 
