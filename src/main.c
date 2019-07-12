@@ -14,8 +14,6 @@
 
 #include "bench.c"
 
-//#include "entity_tree.h"
-
 #include "rbtree_template.h"
 
 #ifdef DEBUG
@@ -26,70 +24,20 @@
 
 #define COMMA ,
 
-/*
- * Entity tree
- */
-static FORCE_INLINE char *et_allocate(char *data)  { return data; }
-static FORCE_INLINE int et_compare(char* x, char *y) { return  strcmp(y, x); }
-static FORCE_INLINE void et_deallocate(char *data) {  free(data); }
-
-MAKE_TREE(et, Entity, char *, char *entity , entity, et_allocate, et_compare, et_deallocate, 0)
-
-
-/*
- * RelationName tree
- */
-static FORCE_INLINE char *rel_allocate(char *data)  { return data; }
-static FORCE_INLINE int rel_compare(char* x, char *y) { return  strcmp(y, x); }
-static FORCE_INLINE void rel_deallocate(char *data) {  free(data); }
-
-MAKE_TREE(rel, RelationName, char *, char *relation , relation, rel_allocate, rel_compare, rel_deallocate, 0)
-
-/* 
-
-typedef struct
+typedef struct s_reportlink
 {
-    char *from;
     char *to;
-    char *rel;
-}RelationStorageData;
-
-static FORCE_INLINE RelationStorageData *rst_allocate(char *from, char* to, char* rel)
-{
-    RelationStorageData *dt = malloc(sizeof(RelationStorageData));
-    dt->from = from;
-    dt->to = to;
-    dt->rel = rel;
-
-    return dt;
-}
-
-static FORCE_INLINE int rst_compare(RelationStorageData * x, char *from, char* to, char* rel)
-{
-    if(from == x->from && to == x->to && rel == x->rel)
-        return 0;
-
-    int res = from > x->from && to > x->to && rel > x->rel;
-
-    return res != 0 ? 1 : -1;
-}
-
-static FORCE_INLINE void rst_deallocate(RelationStorageData *data)
-{
-    //dont free strings, they are freed by other trees
-    free(data);
-}
+    int count;
+    struct s_reportlink *prev, *next;
+} ReportLink;
 
 
-MAKE_TREE(rst, RelationStorage, RelationStorageData *,
-        char *from COMMA char* to COMMA char* rel , from COMMA to COMMA rel,
-        rst_allocate, rst_compare, rst_deallocate, {0 COMMA 0 COMMA 0} )
-
-*/
-
+#include "entitys_tree.c"
+#include "relation_names_tree.c"
 #include "relation_storage_tree.c"
 
-static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations)
+
+static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations, RelationNameTree *relNames, EntityTree *entities)
 {
     static RelationStorageNode *stack[30];
 
@@ -122,7 +70,7 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
         }
 
         //add nodes to remove list
-        if(p->data->from == ent->data || p->data->to == ent->data)
+        if(p->data->to == ent->data)
         {
             used++;
             if(used > alloc_sz)
@@ -132,8 +80,43 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
             }
 
             rm_list[used-1] = p->data;
+
+            if(ent->rank_sz > 0)
+            {
+                //delete ranks
+                //TODO: optimize this shit
+                RelationNameNode *rel = rel_search(relNames, p->data->rel);
+
+                if(ent->ranks[rel->id])
+                {
+                    rel_delete_rank(rel, ent->ranks[rel->id]);
+                    ent->ranks[rel->id] = NULL;
+                }
+            }
+
+        }
+        else if (p->data->from == ent->data)
+        {
+            used++;
+            if(used > alloc_sz)
+            {
+                alloc_sz += 100;
+                rm_list = realloc(rm_list, alloc_sz *sizeof(RelationStorageData *));
+            }
+
+            rm_list[used-1] = p->data;
+
+            //update ranks for other
+            //TODO: optimize this shit
+            EntityNode * dest = et_search(entities, p->data->to);
+            RelationNameNode *rel = rel_search(relNames, p->data->rel);
+            rel_update_rank(rel, dest->ranks[rel->id], -1);
+
+            //printf("%s -1 to %s\n", rel->data, dest->data);
         }
     }
+
+    free(ent->ranks);
 
     //delete
     for(int i =0; i < used; i++)
@@ -233,6 +216,31 @@ int main(int argc, char** argv)
 
                         int r2 = 0;
                         rst_insert(relations, source->data, dest->data, rel->data, &r2);
+
+                        if(r2)
+                        {
+
+                            //create/update ranks for dest
+                            if (rel->id > dest->rank_sz - 1)
+                            {
+                                int add = (rel->id / 10 + 1) * 10;
+                                dest->ranks = realloc(dest->ranks, (dest->rank_sz + add) * sizeof(ReportLink *));
+                                memset((dest->ranks + dest->rank_sz), 0, add * sizeof(ReportLink *));
+                                dest->rank_sz += add;
+                            }
+
+                            if ((dest->ranks[rel->id]))
+                            {
+                                rel_update_rank(rel, dest->ranks[rel->id], 1);
+                            }
+                            else
+                            {
+                                dest->ranks[rel->id] = rel_make_rank(rel, dest->data);
+                            }
+
+                            //printf("%s +1 to %s\n", rel->data, dest->data);
+                        }
+
                     }
                 }
 
@@ -255,7 +263,9 @@ int main(int argc, char** argv)
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
                 {
-                    remove_all_relations_for(res, relations);
+                    // clean all ranks for res
+
+                    remove_all_relations_for(res, relations, relationNames, entities);
                     et_delete(entities, res);
                 }
                 free(command[0]);
@@ -284,21 +294,24 @@ int main(int argc, char** argv)
 
 
                 // do deletion if possibile
-                EntityNode *source = et_search(entities, command[0]);
-                if(source)
+
+                RelationStorageNode *del = rst_search(relations, command[0], command[1], command[2]);
+                if(del)
                 {
                     EntityNode *dest = et_search(entities, command[1]);
-                    if(dest)
-                    {
-                        rst_delete(relations, rst_search(relations, source->data, dest->data, command[2]));
-                    }
+                    RelationNameNode *rel = rel_search(relationNames, command[2]);
+
+                    rel_update_rank(rel, dest->ranks[rel->id], -1);
+                    //printf("%s -1 to %s\n", rel->data, dest->data);
+
+                    rst_delete(relations, del);
+
                 }
+
 
                 free(command[0]);
                 free(command[1]);
-                    free(command[2]);
-
-                
+                free(command[2]);
             }
         }
         else if(buffer[0] == 'r')

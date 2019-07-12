@@ -503,3 +503,13 @@ void et_count(EntityTree *tree)
     printf("Tree elements: %d", count);
 
 }
+# 1 "templater.h"
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 31 "<command-line>"
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+# 32 "<command-line>" 2
+# 1 "templater.h"
+
+# 1 "rbtree_template.h" 1
+# 3 "templater.h" 2

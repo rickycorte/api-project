@@ -1,72 +1,40 @@
-#include <stdlib.h>
 
 
-typedef struct
+static inline char *et_allocate(char *data) { return data; }
+static inline int et_compare(char *x, char *y) { return strcmp(y, x); }
+static inline void et_deallocate(char *data) { free(data); }
+
+typedef struct s_EntityNode
 {
-    char *from;
-    char *to;
-    char *rel;
-    void *tree_node;
-} RelationStorageData;
+    char *data;
 
-typedef struct s_RelationStorageNode
-{
-    RelationStorageData *data;
+    ReportLink **ranks;
+    int rank_sz;
+
     int color;
-    struct s_RelationStorageNode *parent, *right, *left;
-} RelationStorageNode;
+    struct s_EntityNode *parent, *right, *left;
+} EntityNode;
 
 typedef struct
 {
-    RelationStorageNode *root;
-} RelationStorageTree;
+    EntityNode *root;
+} EntityTree;
 
-
-
-static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel)
+static EntityNode *et_liear_stack[30];
+EntityTree *et_init()
 {
-    RelationStorageData *dt = malloc(sizeof(RelationStorageData));
-    dt->from = from;
-    dt->to = to;
-    dt->rel = rel;
-
-    return dt;
-}
-
-static inline int rst_compare(RelationStorageData *x, char *from, char *to, char *rel)
-{
-    int res = strcmp(from, x->from);
-    if(res) return  res;
-
-    res = strcmp(from, x->to);
-    if(res) return  res;
-
-    return strcmp(rel, x->rel);
-}
-
-static inline void rst_deallocate(RelationStorageData *data)
-{
-
-    free(data);
-}
-
-
-
-static RelationStorageNode *rst_liear_stack[30];
-RelationStorageTree *rst_init()
-{
-    RelationStorageTree *t = malloc(sizeof(RelationStorageTree));
+    EntityTree *t = malloc(sizeof(EntityTree));
     t->root = NULL;
     return t;
 }
-static RelationStorageNode rst_sentinel = { {0} , 0, 0, &rst_sentinel, &rst_sentinel};
-static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNode *x)
+static EntityNode et_sentinel = {0, 0, 0, 0, 0, &et_sentinel, &et_sentinel};
+static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
 {
-    RelationStorageNode *y = x->right;
+    EntityNode *y = x->right;
     x->right = y->left;
-    if (y->left != &rst_sentinel)
+    if (y->left != &et_sentinel)
         y->left->parent = x;
-    if (y != &rst_sentinel)
+    if (y != &et_sentinel)
         y->parent = x->parent;
     if (x->parent)
     {
@@ -80,16 +48,16 @@ static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNo
         tree->root = y;
     }
     y->left = x;
-    if (x != &rst_sentinel)
+    if (x != &et_sentinel)
         x->parent = y;
 }
-static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageNode *x)
+static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
 {
-    RelationStorageNode *y = x->left;
+    EntityNode *y = x->left;
     x->left = y->right;
-    if (y->right != &rst_sentinel)
+    if (y->right != &et_sentinel)
         y->right->parent = x;
-    if (y != &rst_sentinel)
+    if (y != &et_sentinel)
         y->parent = x->parent;
     if (x->parent)
     {
@@ -103,12 +71,12 @@ static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageN
         tree->root = y;
     }
     y->right = x;
-    if (x != &rst_sentinel)
+    if (x != &et_sentinel)
         x->parent = y;
 }
-static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode *x)
+static inline void et_insertFix(EntityTree *tree, EntityNode *x)
 {
-    RelationStorageNode *y;
+    EntityNode *y;
     while (x != tree->root && x->parent->color == 1)
     {
         if (x->parent == x->parent->parent->left)
@@ -126,11 +94,11 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
                 if (x == x->parent->right)
                 {
                     x = x->parent;
-                    rst_leftRotation(tree, x);
+                    et_leftRotation(tree, x);
                 }
                 x->parent->color = 0;
                 x->parent->parent->color = 1;
-                rst_rightRotation(tree, x->parent->parent);
+                et_rightRotation(tree, x->parent->parent);
             }
         }
         else
@@ -148,23 +116,23 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
                 if (x == x->parent->left)
                 {
                     x = x->parent;
-                    rst_rightRotation(tree, x);
+                    et_rightRotation(tree, x);
                 }
                 x->parent->color = 0;
                 x->parent->parent->color = 1;
-                rst_leftRotation(tree, x->parent->parent);
+                et_leftRotation(tree, x->parent->parent);
             }
         }
     }
     tree->root->color = 0;
 }
-RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int *inserted)
+EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
 {
     int cmp = 0;
-    RelationStorageNode *parent = NULL, *itr = tree->root;
-    while (itr && itr != &rst_sentinel)
+    EntityNode *parent = NULL, *itr = tree->root;
+    while (itr && itr != &et_sentinel)
     {
-        cmp = rst_compare(itr->data, from, to, rel);
+        cmp = et_compare(itr->data, entity);
         if (cmp == 0)
         {
             *inserted = 0;
@@ -173,13 +141,15 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
         parent = itr;
         itr = (cmp > 0) ? itr->right : itr->left;
     }
-    RelationStorageNode *node = malloc(sizeof(RelationStorageNode));
-    node->data = rst_allocate(from, to, rel);
-    node->data->tree_node = node;
+    EntityNode *node = malloc(sizeof(EntityNode));
+    node->data = et_allocate(entity);
     node->color = 1;
-    node->left = &rst_sentinel;
-    node->right = &rst_sentinel;
+    node->left = &et_sentinel;
+    node->right = &et_sentinel;
     node->parent = parent;
+    node->ranks = 0;
+    node->rank_sz = 0;
+    // this node don't take care for ranks allocations/deallocations
     if (parent)
     {
         if (cmp > 0)
@@ -191,32 +161,32 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     {
         tree->root = node;
     }
-    rst_insertFix(tree, node);
+    et_insertFix(tree, node);
     *inserted = 1;
     return node;
 }
-RelationStorageNode *rst_search(RelationStorageTree *tree, char *from, char *to, char *rel)
+EntityNode *et_search(EntityTree *tree, char *entity)
 {
-    RelationStorageNode *itr = tree->root;
-    while (itr && itr != &rst_sentinel)
+    EntityNode *itr = tree->root;
+    while (itr && itr != &et_sentinel)
     {
-        int cmp = rst_compare(itr->data, from, to, rel);
+        int cmp = et_compare(itr->data, entity);
         if (cmp == 0)
             break;
         else
             itr = (cmp > 0) ? itr->right : itr->left;
     }
-    return itr != &rst_sentinel ? itr : NULL;
+    return itr != &et_sentinel ? itr : NULL;
 }
-RelationStorageNode *rst_treeMin(RelationStorageNode *tree)
+EntityNode *et_treeMin(EntityNode *tree)
 {
-    while (tree->left != &rst_sentinel)
+    while (tree->left != &et_sentinel)
         tree = tree->left;
     return tree;
 }
-static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode *x)
+static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
 {
-    RelationStorageNode *w;
+    EntityNode *w;
     while (x != tree->root && x->color == 0)
     {
         if (x == x->parent->left)
@@ -226,7 +196,7 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
             {
                 w->color = 0;
                 x->parent->color = 1;
-                rst_leftRotation(tree, x->parent);
+                et_leftRotation(tree, x->parent);
                 w = x->parent->right;
             }
             if (w->left->color == 0 && w->right->color == 0)
@@ -240,13 +210,13 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
                 {
                     w->left->color = 0;
                     w->color = 1;
-                    rst_rightRotation(tree, w);
+                    et_rightRotation(tree, w);
                     w = x->parent->right;
                 }
                 w->color = x->parent->color;
                 x->parent->color = 0;
                 w->right->color = 0;
-                rst_leftRotation(tree, x->parent);
+                et_leftRotation(tree, x->parent);
                 x = tree->root;
             }
         }
@@ -257,7 +227,7 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
             {
                 w->color = 0;
                 x->parent->color = 1;
-                rst_rightRotation(tree, x->parent);
+                et_rightRotation(tree, x->parent);
                 w = x->parent->left;
             }
             if (w->right->color == 0 && w->left->color == 0)
@@ -271,33 +241,33 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
                 {
                     w->right->color = 0;
                     w->color = 1;
-                    rst_leftRotation(tree, w);
+                    et_leftRotation(tree, w);
                     w = x->parent->left;
                 }
                 w->color = x->parent->color;
                 x->parent->color = 0;
                 w->left->color = 0;
-                rst_rightRotation(tree, x->parent);
+                et_rightRotation(tree, x->parent);
                 x = tree->root;
             }
         }
     }
     x->color = 0;
 }
-void rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
+void et_delete(EntityTree *tree, EntityNode *z)
 {
     if (!z)
         return;
-    RelationStorageNode *x, *y;
-    if (z->left == &rst_sentinel || z->right == &rst_sentinel)
+    EntityNode *x, *y;
+    if (z->left == &et_sentinel || z->right == &et_sentinel)
     {
         y = z;
     }
     else
     {
-        y = rst_treeMin(z->right);
+        y = et_treeMin(z->right);
     }
-    if (y->left != &rst_sentinel)
+    if (y->left != &et_sentinel)
         x = y->left;
     else
         x = y->right;
@@ -315,62 +285,62 @@ void rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
     }
     if (y != z)
     {
-        RelationStorageData *temp = z->data;
+        char *temp = z->data;
         z->data = y->data;
         y->data = temp;
-        z->data->tree_node = z; // assign new address of node
+        z->ranks = y->ranks;
+        z->rank_sz = y->rank_sz;
     }
     if (y->color == 0)
-        rst_deleteFix(tree, x);
-    rst_deallocate(y->data);
+        et_deleteFix(tree, x);
+    et_deallocate(y->data);
     free(y);
-
-    if(tree->root == &rst_sentinel)
+    if (tree->root == &et_sentinel)
         tree->root = NULL;
 }
-void rst_clean(RelationStorageTree *tree)
+void et_clean(EntityTree *tree)
 {
     int used = 1;
-    rst_liear_stack[0] = tree->root;
-    if (!rst_liear_stack[0])
+    et_liear_stack[0] = tree->root;
+    if (!et_liear_stack[0])
         return;
-    RelationStorageNode *p;
+    EntityNode *p;
     while (used > 0)
     {
-        p = rst_liear_stack[used - 1];
+        p = et_liear_stack[used - 1];
         used--;
-        if (p->right != &rst_sentinel)
+        if (p->right != &et_sentinel)
         {
-            rst_liear_stack[used] = p->right;
+            et_liear_stack[used] = p->right;
             used++;
         }
-        if (p->left != &rst_sentinel)
+        if (p->left != &et_sentinel)
         {
-            rst_liear_stack[used] = p->left;
+            et_liear_stack[used] = p->left;
             used++;
         }
-        rst_deallocate(p->data);
+        et_deallocate(p->data);
         free(p);
     }
 }
-void rst_count(RelationStorageTree *tree)
+void et_count(EntityTree *tree)
 {
     int count = 0;
     int used = 1;
-    rst_liear_stack[0] = tree->root;
-    RelationStorageNode *p;
+    et_liear_stack[0] = tree->root;
+    EntityNode *p;
     while (used > 0)
     {
-        p = rst_liear_stack[used - 1];
+        p = et_liear_stack[used - 1];
         used--;
-        if (p->right != &rst_sentinel)
+        if (p->right != &et_sentinel)
         {
-            rst_liear_stack[used] = p->right;
+            et_liear_stack[used] = p->right;
             used++;
         }
-        if (p->left != &rst_sentinel)
+        if (p->left != &et_sentinel)
         {
-            rst_liear_stack[used] = p->left;
+            et_liear_stack[used] = p->left;
             used++;
         }
         count++;
