@@ -3,9 +3,23 @@
 
 #define COMMA ,
 
+static FORCE_INLINE char *et_allocate(char *data)  { return data; }
+static FORCE_INLINE int et_compare(char* x, char *y) { return  strcmp(y, x); }
+static FORCE_INLINE void et_deallocate(char *data) {  free(data); }
+
+MAKE_TREE(et, Entity, char *, char *entity , entity, et_allocate, et_compare, et_deallocate, 0)
+
+/*
+static FORCE_INLINE char *rel_allocate(char *data)  { return data; }
+static FORCE_INLINE int rel_compare(char* x, char *y) { return  strcmp(y, x); }
+static FORCE_INLINE void rel_deallocate(char *data) {  free(data); }
+
+MAKE_TREE(rel, RelationName, char *, char *relation , relation, rel_allocate, rel_compare, rel_deallocate, 0)
+*/
+
 /*
  * RelationStorage Tree
-*/
+
 typedef struct
 {
     char *from;
@@ -41,3 +55,4 @@ static inline void rst_deallocate(RelationStorageData *data)
 MAKE_TREE(rst, RelationStorage, RelationStorageData *,
 char *from COMMA char* to COMMA char* rel , from COMMA to COMMA rel,
         rst_allocate, rst_compare, rst_deallocate, {0 COMMA 0 COMMA 0} )
+*/
