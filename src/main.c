@@ -203,7 +203,7 @@ int main(int argc, char** argv)
                         RelationNameNode *rel =  rel_insert(relationNames, command[2], &res);
 
                         int r2 = 0;
-                        rst_insert(relations, source->data, dest->data, rel->data, &r2);
+                        rst_insert(relations, source->data, dest->data, rel->data, rel->id, &r2);
                     }
                 }
 

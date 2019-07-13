@@ -7,6 +7,7 @@ typedef struct
     char *to;
     char *rel;
     void *tree_node;
+    int rel_id;
 } RelationStorageData;
 
 typedef struct s_RelationStorageNode
@@ -23,12 +24,13 @@ typedef struct
 
 
 
-static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel)
+static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel, int rel_id)
 {
     RelationStorageData *dt = malloc(sizeof(RelationStorageData));
     dt->from = from;
     dt->to = to;
     dt->rel = rel;
+    dt->rel_id;
     return dt;
 }
 
@@ -39,6 +41,7 @@ static inline int rst_compare(RelationStorageData *x, char *from, char *to, char
     res = strcmp(to, x->to);
     if(res) return res;
     return strcmp(rel, x->rel);
+    //TODO: provare a comparare gli id di relazione per risparmiare una strcmp
 }
 
 static inline void rst_deallocate(RelationStorageData *data)
@@ -155,7 +158,7 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
     }
     tree->root->color = 0;
 }
-RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int *inserted)
+RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int rel_id, int *inserted)
 {
     int cmp = 0;
     RelationStorageNode *parent = NULL, *itr = tree->root;
@@ -171,7 +174,7 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
         itr = (cmp > 0) ? itr->right : itr->left;
     }
     RelationStorageNode *node = malloc(sizeof(RelationStorageNode));
-    node->data = rst_allocate(from, to, rel);
+    node->data = rst_allocate(from, to, rel, rel_id);
     node->data->tree_node = node;
     node->color = 1;
     node->left = &rst_sentinel;
