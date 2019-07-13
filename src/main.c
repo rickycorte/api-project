@@ -107,7 +107,7 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
  * Report
  ****************************************/
 
-static inline int print_rep(ReportTree *tree)
+static inline int print_rep(char *rel, ReportTree *tree)
 {
     static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
     int max = 1;
@@ -152,13 +152,15 @@ static inline int print_rep(ReportTree *tree)
     }
 
 
-
-    for(int i =0; i < out_last; i++)
-    {
-        printf(" %s", out[i]->data);
-    }
     if(out_last > 0)
+    {
+        printf("%s", rel);
+        for (int i = 0; i < out_last; i++)
+        {
+            printf(" %s", out[i]->data);
+        }
         printf(" %d;", max);
+    }
 
     return out_last;
 }
@@ -193,16 +195,11 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
                 if(print)
                     printf(" ");
 
-                printf("%s", curr->data);
-
-                print_rep(reports[curr->id]);
-                print = 1;
+                print = print_rep(curr->data, reports[curr->id]);
             }
 
             curr = curr->right;
         }
-
-
     }
 
     if(!print)
