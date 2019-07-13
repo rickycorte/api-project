@@ -35,7 +35,9 @@
  * Delete relations
  ****************************************/
 
-static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations, ReportTree *reports[])
+
+
+static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
 {
     static RelationStorageNode *stack[30];
 
@@ -50,6 +52,8 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
     int alloc_sz = 100;
     int used = 0;
     RelationStorageData **rm_list = malloc(100 * sizeof(RelationStorageData *));
+
+    //DEBUG_PRINT("RMA of %s:\n", ent->data);
 
     while(stack_used > 0) // stack not empty
     {
@@ -79,18 +83,30 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
 
             rm_list[used-1] = p->data;
 
-            if(p->data->to == ent->data)
-            {
-                ReportNode *rep = rep_search(reports[p->data->rel_id], ent->data);
-                rep_delete(reports[p->data->rel_id], rep);
-            }
-            else
+            //DEBUG_PRINT("RMA f: %s t: %s r: %s -> ", p->data->from, p->data->to, p->data->rel);
+
+            if(p->data->from == ent->data)
             {
                 ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
-                if(rep) rep->count--;
+                if(rep)
+                {
+                    rep->count--;
+                    //DEBUG_PRINT("-1\n");
+                }
+                else
+                {
+                    //DEBUG_PRINT("RMA (tgt: %s) Error: unable to find report data for %s\n", ent->data, p->data->to);
+                }
             }
 
         }
+    }
+
+    //delete all reports
+    for(int i= 0; i < rep_count; i++)
+    {
+        ReportNode *rep = rep_search(reports[i], ent->data);
+        rep_delete(reports[i], rep);
     }
 
     //delete
@@ -107,7 +123,7 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
  * Report
  ****************************************/
 
-static inline int print_rep(char *rel, ReportTree *tree)
+static inline int print_rep(char *rel, ReportTree *tree, int space)
 {
     static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
     int max = 1;
@@ -154,6 +170,8 @@ static inline int print_rep(char *rel, ReportTree *tree)
 
     if(out_last > 0)
     {
+        if(space) printf(" ");
+
         printf("%s", rel);
         for (int i = 0; i < out_last; i++)
         {
@@ -192,10 +210,9 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
             //do shit
             if(reports[curr->id] && reports[curr->id]->root)
             {
-                if(print)
-                    printf(" ");
+                int res = print_rep(curr->data, reports[curr->id], print);
 
-                print = print_rep(curr->data, reports[curr->id]);
+                if(res > 0) print = 1;
             }
 
             curr = curr->right;
@@ -333,7 +350,7 @@ int main(int argc, char** argv)
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
                 {
-                    remove_all_relations_for(res, relations, reports);
+                    remove_all_relations_for(res, relations, reports, relationNames->count);
                     et_delete(entities, res);
                 }
                 free(command[0]);
@@ -366,7 +383,14 @@ int main(int argc, char** argv)
                     int rel_id = rst_delete(relations, del);
 
                     ReportNode *rep = rep_search(reports[rel_id], command[1]);
-                    if(rep) rep->count--;
+                    if(rep)
+                    {
+                        rep->count--;
+                    }
+                    else
+                    {
+                        DEBUG_PRINT("RM Error: unable to find report data for %s\n", command[1]);
+                    }
                 }
 
                 free(command[0]);
