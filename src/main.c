@@ -112,44 +112,46 @@ static inline int print_rep(ReportTree *tree)
     static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
     int max = 1;
     int out_last = 0;
-    int used = 1;
+    int used = 0;
 
-    static ReportNode *stack[10];
-    stack[0] = tree->root;
+    static RelationNameNode *stack[20];
+    ReportNode *curr = tree->root;
 
-    if(stack[0])
+    if(curr)
     {
-        ReportNode *p;
-        while (used > 0)
+
+        while(curr != &rep_sentinel || used > 0)
         {
-            p = stack[used - 1];
-            used--;
-            if (p->right != &rep_sentinel)
+            while(curr != &rep_sentinel)
             {
-                stack[used] = p->right;
+                stack[used] = curr;
                 used++;
-            }
-            if (p->left != &rep_sentinel)
-            {
-                stack[used] = p->left;
-                used++;
+                curr = curr->left;
             }
 
+            curr = stack[used-1];
+            used--;
+
+            //do shit
             //reset on greater
-            if(p->count > max)
+            if(curr->count > max)
             {
-                out[0] = p;
-                max = p->count;
+                out[0] = curr;
+                max = curr->count;
                 out_last = 1;
             }
-            else if(p->count == max) // append on equal
+            else if(curr->count == max) // append on equal
             {
-                out[out_last] = p;
+                out[out_last] = curr;
                 out_last++;
             }
+
+            curr = curr->right;
         }
 
     }
+
+
 
     for(int i =0; i < out_last; i++)
     {
@@ -164,44 +166,42 @@ static inline int print_rep(ReportTree *tree)
 
 static inline void report(RelationNameTree *relNames, ReportTree *reports[])
 {
-    int used = 1;
-    static RelationNameNode *stack[10];
-    stack[0] = relNames->root;
+    int used = 0;
+    static RelationNameNode *stack[20];
+    RelationNameNode *curr = relNames->root;
 
     int print = 0;
 
-    if(stack[0])
+    if(curr)
     {
-        RelationNameNode *p;
-        while (used > 0)
+
+        while(curr != &rel_sentinel || used > 0)
         {
-            p = stack[used - 1];
+            while(curr != &rel_sentinel)
+            {
+                stack[used] = curr;
+                used++;
+                curr = curr->left;
+            }
+
+            curr = stack[used-1];
             used--;
 
-
-            if (p->right != &rel_sentinel)
-            {
-                stack[used] = p->right;
-                used++;
-            }
-            if (p->left != &rel_sentinel)
-            {
-                stack[used] = p->left;
-                used++;
-            }
-
             //do shit
-            if(reports[p->id] && reports[p->id]->root)
+            if(reports[curr->id] && reports[curr->id]->root)
             {
                 if(print)
                     printf(" ");
 
-                printf("%s", p->data);
+                printf("%s", curr->data);
 
-                print_rep(reports[p->id]);
+                print_rep(reports[curr->id]);
                 print = 1;
             }
+
+            curr = curr->right;
         }
+
 
     }
 
