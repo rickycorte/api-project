@@ -30,7 +30,7 @@ static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel,
     dt->from = from;
     dt->to = to;
     dt->rel = rel;
-    dt->rel_id;
+    dt->rel_id = rel_id;
     return dt;
 }
 
@@ -46,7 +46,6 @@ static inline int rst_compare(RelationStorageData *x, char *from, char *to, char
 
 static inline void rst_deallocate(RelationStorageData *data)
 {
-
     free(data);
 }
 
@@ -284,10 +283,16 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
     }
     x->color = 0;
 }
-void rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
+/**
+ * Delete and return relation of deleted node
+ * @param tree
+ * @param z
+ * @return
+ */
+int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
 {
     if (!z)
-        return;
+        return -1;
     RelationStorageNode *x, *y;
     if (z->left == &rst_sentinel || z->right == &rst_sentinel)
     {
@@ -322,11 +327,16 @@ void rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
     }
     if (y->color == 0)
         rst_deleteFix(tree, x);
+
+    int res = y->data->rel_id;
+
     rst_deallocate(y->data);
     free(y);
 
     if(tree->root == &rst_sentinel)
         tree->root = NULL;
+
+    return res;
 }
 void rst_clean(RelationStorageTree *tree)
 {

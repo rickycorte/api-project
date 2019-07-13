@@ -5,6 +5,8 @@
 #define DEBUG
 
 #define INPUT_BUFFER_SIZE 1024
+#define REPORT_OUT_QUEUE_SIZE 512
+#define REPORT_TREES 50
 
 #ifdef DEBUG
     #define DEBUG_PRINT printf
@@ -23,15 +25,17 @@
 #endif
 
 
+
 #include "entity_tree.c"
 #include "relation_name_tree.c"
 #include "relation_storage_tree.c"
+#include "report_tree.c"
 
 /****************************************
  * Delete relations
  ****************************************/
 
-static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations)
+static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations, ReportTree *reports[])
 {
     static RelationStorageNode *stack[30];
 
@@ -74,6 +78,18 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
             }
 
             rm_list[used-1] = p->data;
+
+            if(p->data->to == ent->data)
+            {
+                ReportNode *rep = rep_search(reports[p->data->rel_id], ent->data);
+                rep_delete(reports[p->data->rel_id], rep);
+            }
+            else
+            {
+                ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
+                if(rep) rep->count--;
+            }
+
         }
     }
 
@@ -86,51 +102,115 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
     free(rm_list);
 }
 
-/****************************************
- * Delete relations
- ****************************************/
-
-
-static inline void report()
-{
-
-}
-
-
 
 /****************************************
- * Parse
+ * Report
  ****************************************/
 
-static inline char* get_entity(char * buffer, int buff_sz)
+static inline int print_rep(ReportTree *tree)
 {
-    char *ent = malloc(buff_sz-7);
-    memcpy(ent, (buffer + 7), buff_sz-8);
-    buffer[buff_sz-8] = '\0';
+    static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
+    int max = 1;
+    int out_last = 0;
+    int used = 1;
 
-    return ent;
-}
+    static ReportNode *stack[10];
+    stack[0] = tree->root;
 
-
-static inline void get_command_parameters(char *buffer, int buff_sz, char **command)
-{
-    int spaces = 0;
-    int last_space = 6; //position of the first space
-    for(int i = 7; i < buff_sz && spaces < 2; i++)
+    if(stack[0])
     {
-        if(buffer[i] == ' ')
+        ReportNode *p;
+        while (used > 0)
         {
-            command[spaces] =  malloc(i-last_space);
-            memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
-            command[spaces][i-last_space-1] = '\0';
-            last_space = i;
-            spaces++;
+            p = stack[used - 1];
+            used--;
+            if (p->right != &rep_sentinel)
+            {
+                stack[used] = p->right;
+                used++;
+            }
+            if (p->left != &rep_sentinel)
+            {
+                stack[used] = p->left;
+                used++;
+            }
+
+            //reset on greater
+            if(p->count > max)
+            {
+                out[0] = p;
+                max = p->count;
+                out_last = 1;
+            }
+            else if(p->count == max) // append on equal
+            {
+                out[out_last] = p;
+                out_last++;
+            }
         }
+
     }
-    command[2] =  malloc(buff_sz - last_space-1);
-    memcpy(command[2], (buffer + last_space+1), buff_sz-last_space-2);
-    command[2][buff_sz-last_space-2] = '\0';
+
+    for(int i =0; i < out_last; i++)
+    {
+        printf(" %s", out[i]->data);
+    }
+    if(out_last > 0)
+        printf(" %d;", max);
+
+    return out_last;
 }
+
+
+static inline void report(RelationNameTree *relNames, ReportTree *reports[])
+{
+    int used = 1;
+    static RelationNameNode *stack[10];
+    stack[0] = relNames->root;
+
+    int print = 0;
+
+    if(stack[0])
+    {
+        RelationNameNode *p;
+        while (used > 0)
+        {
+            p = stack[used - 1];
+            used--;
+
+
+            if (p->right != &rel_sentinel)
+            {
+                stack[used] = p->right;
+                used++;
+            }
+            if (p->left != &rel_sentinel)
+            {
+                stack[used] = p->left;
+                used++;
+            }
+
+            //do shit
+            if(reports[p->id] && reports[p->id]->root)
+            {
+                if(print)
+                    printf(" ");
+
+                printf("%s", p->data);
+
+                print_rep(reports[p->id]);
+                print = 1;
+            }
+        }
+
+    }
+
+    if(!print)
+        printf("none\n");
+    else
+        printf("\n");
+}
+
 
 /****************************************
  * MAIN
@@ -142,6 +222,8 @@ int main(int argc, char** argv)
     EntityTree *entities = et_init();
     RelationNameTree *relationNames = rel_init();
     RelationStorageTree *relations = rst_init();
+
+    ReportTree *reports[REPORT_TREES] = {0};
 
     #ifdef DEBUG
     double start_tm = ns();
@@ -175,7 +257,9 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //addent <ent>
-                command[0] =  get_entity(buffer, rsz);
+                command[0] = malloc(rsz-7);
+                memcpy(command[0], (buffer + 7), rsz-8);
+                command[0][rsz-8] = '\0';
 
                 int res;
                 et_insert(entities, command[0], &res);
@@ -189,7 +273,22 @@ int main(int argc, char** argv)
             {
                 //addrel <from> <to> <rel>
 
-                get_command_parameters(buffer, rsz, command);
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces] =  malloc(i-last_space);
+                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[2] =  malloc(rsz - last_space-1);
+                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
+                command[2][rsz-last_space-2] = '\0';
 
                 // do insertion if possibile
                 int res = 0;
@@ -204,6 +303,17 @@ int main(int argc, char** argv)
 
                         int r2 = 0;
                         rst_insert(relations, source->data, dest->data, rel->data, rel->id, &r2);
+
+
+                        if(r2)
+                        {
+                            if (!reports[rel->id])
+                            {
+                                reports[rel->id] = rep_init();
+                            }
+
+                            rep_insert(reports[rel->id], dest->data, &r2);
+                        }
                     }
                 }
 
@@ -219,12 +329,14 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //delent <ent>
-                command[0] =  get_entity(buffer, rsz);
+                command[0] = malloc(rsz-7);
+                memcpy(command[0], (buffer + 7), rsz-8);
+                command[0][rsz-8] = '\0';
 
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
                 {
-                    remove_all_relations_for(res, relations);
+                    remove_all_relations_for(res, relations, reports);
                     et_delete(entities, res);
                 }
                 free(command[0]);
@@ -234,12 +346,30 @@ int main(int argc, char** argv)
             else if(buffer[3] == 'r')
             {
                 //delrel <from> <to> <rel>
-                get_command_parameters(buffer, rsz, &command);
+                int spaces = 0;
+                int last_space = 6; //position of the first space
+                for(int i = 7; i < rsz && spaces < 2; i++)
+                {
+                    if(buffer[i] == ' ')
+                    {
+                        command[spaces] =  malloc(i-last_space);
+                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
+                        command[spaces][i-last_space-1] = '\0';
+                        last_space = i;
+                        spaces++;
+                    }
+                }
+                command[2] =  malloc(rsz - last_space-1);
+                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
+                command[2][rsz-last_space-2] = '\0';
 
                 RelationStorageNode *del = rst_search(relations, command[0], command[1], command[2]);
                 if(del)
                 {
-                    rst_delete(relations, del);
+                    int rel_id = rst_delete(relations, del);
+
+                    ReportNode *rep = rep_search(reports[rel_id], command[1]);
+                    if(rep) rep->count--;
                 }
 
                 free(command[0]);
@@ -251,7 +381,7 @@ int main(int argc, char** argv)
         else if(buffer[0] == 'r')
         {
             //report
-
+            report(relationNames, reports);
         }
         else
         {
@@ -260,6 +390,7 @@ int main(int argc, char** argv)
         }
 
     } while (!exit_loop);
+
 
     //rm buffer
     free(buffer);
@@ -272,6 +403,15 @@ int main(int argc, char** argv)
 
     rst_clean(relations);
     free(relations);
+
+    for(int i = 0; i <REPORT_TREES; i++)
+    {
+        if(reports[i])
+        {
+            rep_clean(reports[i]);
+            free(reports[i]);
+        }
+    }
 
     #ifdef DEBUG
     if(fl) fclose(fl);

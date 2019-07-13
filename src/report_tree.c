@@ -1,29 +1,34 @@
 
-typedef struct s_EntityNode
+static FORCE_INLINE char *rep_allocate(char *data) { return data; }
+static FORCE_INLINE int rep_compare(char *x, char *y) { return strcmp(y, x); }
+static FORCE_INLINE void rep_deallocate(char *data) {  }
+
+typedef struct s_ReportNode
 {
     char *data;
+    int count;
     int color;
-    struct s_EntityNode *parent, *right, *left;
-} EntityNode;
+    struct s_ReportNode *parent, *right, *left;
+} ReportNode;
 typedef struct
 {
-    EntityNode *root;
-} EntityTree;
-static EntityNode *et_liear_stack[30];
-EntityTree *et_init()
+    ReportNode *root;
+} ReportTree;
+static ReportNode *rep_liear_stack[30];
+ReportTree *rep_init()
 {
-    EntityTree *t = malloc(sizeof(EntityTree));
+    ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
     return t;
 }
-static EntityNode et_sentinel = {0, 0, 0, &et_sentinel, &et_sentinel};
-static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
+static ReportNode rep_sentinel = {0, 0, 0, &rep_sentinel, &rep_sentinel};
+static inline void rep_leftRotation(ReportTree *tree, ReportNode *x)
 {
-    EntityNode *y = x->right;
+    ReportNode *y = x->right;
     x->right = y->left;
-    if (y->left != &et_sentinel)
+    if (y->left != &rep_sentinel)
         y->left->parent = x;
-    if (y != &et_sentinel)
+    if (y != &rep_sentinel)
         y->parent = x->parent;
     if (x->parent)
     {
@@ -37,16 +42,16 @@ static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
         tree->root = y;
     }
     y->left = x;
-    if (x != &et_sentinel)
+    if (x != &rep_sentinel)
         x->parent = y;
 }
-static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
+static inline void rep_rightRotation(ReportTree *tree, ReportNode *x)
 {
-    EntityNode *y = x->left;
+    ReportNode *y = x->left;
     x->left = y->right;
-    if (y->right != &et_sentinel)
+    if (y->right != &rep_sentinel)
         y->right->parent = x;
-    if (y != &et_sentinel)
+    if (y != &rep_sentinel)
         y->parent = x->parent;
     if (x->parent)
     {
@@ -60,12 +65,12 @@ static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
         tree->root = y;
     }
     y->right = x;
-    if (x != &et_sentinel)
+    if (x != &rep_sentinel)
         x->parent = y;
 }
-static inline void et_insertFix(EntityTree *tree, EntityNode *x)
+static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
 {
-    EntityNode *y;
+    ReportNode *y;
     while (x != tree->root && x->parent->color == 1)
     {
         if (x->parent == x->parent->parent->left)
@@ -83,11 +88,11 @@ static inline void et_insertFix(EntityTree *tree, EntityNode *x)
                 if (x == x->parent->right)
                 {
                     x = x->parent;
-                    et_leftRotation(tree, x);
+                    rep_leftRotation(tree, x);
                 }
                 x->parent->color = 0;
                 x->parent->parent->color = 1;
-                et_rightRotation(tree, x->parent->parent);
+                rep_rightRotation(tree, x->parent->parent);
             }
         }
         else
@@ -105,37 +110,40 @@ static inline void et_insertFix(EntityTree *tree, EntityNode *x)
                 if (x == x->parent->left)
                 {
                     x = x->parent;
-                    et_rightRotation(tree, x);
+                    rep_rightRotation(tree, x);
                 }
                 x->parent->color = 0;
                 x->parent->parent->color = 1;
-                et_leftRotation(tree, x->parent->parent);
+                rep_leftRotation(tree, x->parent->parent);
             }
         }
     }
     tree->root->color = 0;
 }
-EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
+ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
 {
     int cmp = 0;
-    EntityNode *parent = NULL, *itr = tree->root;
-    while (itr && itr != &et_sentinel)
+    ReportNode *parent = NULL, *itr = tree->root;
+    while (itr && itr != &rep_sentinel)
     {
-        cmp = strcmp(entity, itr->data);
+        cmp = rep_compare(itr->data, to);
         if (cmp == 0)
         {
             *inserted = 0;
+            itr->count++;
             return itr;
         }
         parent = itr;
         itr = (cmp > 0) ? itr->right : itr->left;
     }
-    EntityNode *node = malloc(sizeof(EntityNode));
-    node->data = entity;
+    ReportNode *node = malloc(sizeof(ReportNode));
+    node->data = rep_allocate(to);
     node->color = 1;
-    node->left = &et_sentinel;
-    node->right = &et_sentinel;
+    node->left = &rep_sentinel;
+    node->right = &rep_sentinel;
     node->parent = parent;
+    node->count = 1; // start at 1 relation
+
     if (parent)
     {
         if (cmp > 0)
@@ -147,33 +155,32 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     {
         tree->root = node;
     }
-    et_insertFix(tree, node);
+    rep_insertFix(tree, node);
     *inserted = 1;
     return node;
 }
-EntityNode *et_search(EntityTree *tree, char *entity)
+ReportNode *rep_search(ReportTree *tree, char *to)
 {
-    EntityNode *itr = tree->root;
-
-    while (itr && itr != &et_sentinel)
+    ReportNode *itr = tree->root;
+    while (itr && itr != &rep_sentinel)
     {
-        int cmp = strcmp(entity, itr->data);
+        int cmp = rep_compare(itr->data, to);
         if (cmp == 0)
             break;
         else
             itr = (cmp > 0) ? itr->right : itr->left;
     }
-    return itr != &et_sentinel ? itr : NULL;
+    return itr != &rep_sentinel ? itr : NULL;
 }
-EntityNode *et_treeMin(EntityNode *tree)
+ReportNode *rep_treeMin(ReportNode *tree)
 {
-    while (tree->left != &et_sentinel)
+    while (tree->left != &rep_sentinel)
         tree = tree->left;
     return tree;
 }
-static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
+static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
 {
-    EntityNode *w;
+    ReportNode *w;
     while (x != tree->root && x->color == 0)
     {
         if (x == x->parent->left)
@@ -183,7 +190,7 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
             {
                 w->color = 0;
                 x->parent->color = 1;
-                et_leftRotation(tree, x->parent);
+                rep_leftRotation(tree, x->parent);
                 w = x->parent->right;
             }
             if (w->left->color == 0 && w->right->color == 0)
@@ -197,13 +204,13 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
                 {
                     w->left->color = 0;
                     w->color = 1;
-                    et_rightRotation(tree, w);
+                    rep_rightRotation(tree, w);
                     w = x->parent->right;
                 }
                 w->color = x->parent->color;
                 x->parent->color = 0;
                 w->right->color = 0;
-                et_leftRotation(tree, x->parent);
+                rep_leftRotation(tree, x->parent);
                 x = tree->root;
             }
         }
@@ -214,7 +221,7 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
             {
                 w->color = 0;
                 x->parent->color = 1;
-                et_rightRotation(tree, x->parent);
+                rep_rightRotation(tree, x->parent);
                 w = x->parent->left;
             }
             if (w->right->color == 0 && w->left->color == 0)
@@ -228,33 +235,33 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
                 {
                     w->right->color = 0;
                     w->color = 1;
-                    et_leftRotation(tree, w);
+                    rep_leftRotation(tree, w);
                     w = x->parent->left;
                 }
                 w->color = x->parent->color;
                 x->parent->color = 0;
                 w->left->color = 0;
-                et_rightRotation(tree, x->parent);
+                rep_rightRotation(tree, x->parent);
                 x = tree->root;
             }
         }
     }
     x->color = 0;
 }
-void et_delete(EntityTree *tree, EntityNode *z)
+void rep_delete(ReportTree *tree, ReportNode *z)
 {
     if (!z)
         return;
-    EntityNode *x, *y;
-    if (z->left == &et_sentinel || z->right == &et_sentinel)
+    ReportNode *x, *y;
+    if (z->left == &rep_sentinel || z->right == &rep_sentinel)
     {
         y = z;
     }
     else
     {
-        y = et_treeMin(z->right);
+        y = rep_treeMin(z->right);
     }
-    if (y->left != &et_sentinel)
+    if (y->left != &rep_sentinel)
         x = y->left;
     else
         x = y->right;
@@ -275,57 +282,58 @@ void et_delete(EntityTree *tree, EntityNode *z)
         char *temp = z->data;
         z->data = y->data;
         y->data = temp;
+        z->count = y->count;
     }
     if (y->color == 0)
-        et_deleteFix(tree, x);
-    free(y->data);
+        rep_deleteFix(tree, x);
+    rep_deallocate(y->data);
     free(y);
-    if (tree->root == &et_sentinel)
+    if (tree->root == &rep_sentinel)
         tree->root = NULL;
 }
-void et_clean(EntityTree *tree)
+void rep_clean(ReportTree *tree)
 {
     int used = 1;
-    et_liear_stack[0] = tree->root;
-    if (!et_liear_stack[0])
+    rep_liear_stack[0] = tree->root;
+    if (!rep_liear_stack[0])
         return;
-    EntityNode *p;
+    ReportNode *p;
     while (used > 0)
     {
-        p = et_liear_stack[used - 1];
+        p = rep_liear_stack[used - 1];
         used--;
-        if (p->right != &et_sentinel)
+        if (p->right != &rep_sentinel)
         {
-            et_liear_stack[used] = p->right;
+            rep_liear_stack[used] = p->right;
             used++;
         }
-        if (p->left != &et_sentinel)
+        if (p->left != &rep_sentinel)
         {
-            et_liear_stack[used] = p->left;
+            rep_liear_stack[used] = p->left;
             used++;
         }
-        free(p->data);
+        rep_deallocate(p->data);
         free(p);
     }
 }
-void et_count(EntityTree *tree)
+void rep_count(ReportTree *tree)
 {
     int count = 0;
     int used = 1;
-    et_liear_stack[0] = tree->root;
-    EntityNode *p;
+    rep_liear_stack[0] = tree->root;
+    ReportNode *p;
     while (used > 0)
     {
-        p = et_liear_stack[used - 1];
+        p = rep_liear_stack[used - 1];
         used--;
-        if (p->right != &et_sentinel)
+        if (p->right != &rep_sentinel)
         {
-            et_liear_stack[used] = p->right;
+            rep_liear_stack[used] = p->right;
             used++;
         }
-        if (p->left != &et_sentinel)
+        if (p->left != &rep_sentinel)
         {
-            et_liear_stack[used] = p->left;
+            rep_liear_stack[used] = p->left;
             used++;
         }
         count++;
