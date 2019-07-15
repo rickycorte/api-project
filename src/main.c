@@ -7,6 +7,7 @@
 #define INPUT_BUFFER_SIZE 1024
 #define REPORT_OUT_QUEUE_SIZE 512
 #define REPORT_TREES 50
+#define REPORT_BUFFER_SIZE 1024
 
 #ifdef DEBUG
     #define DEBUG_PRINT printf
@@ -53,7 +54,6 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
     int used = 0;
     RelationStorageData **rm_list = malloc(100 * sizeof(RelationStorageData *));
 
-    //DEBUG_PRINT("RMA of %s:\n", ent->data);
 
     while(stack_used > 0) // stack not empty
     {
@@ -83,7 +83,6 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
 
             rm_list[used-1] = p->data;
 
-            //DEBUG_PRINT("RMA f: %s t: %s r: %s -> ", p->data->from, p->data->to, p->data->rel);
 
             if(p->data->from == ent->data)
             {
@@ -91,11 +90,6 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
                 if(rep)
                 {
                     rep->count--;
-                    //DEBUG_PRINT("-1\n");
-                }
-                else
-                {
-                    //DEBUG_PRINT("RMA (tgt: %s) Error: unable to find report data for %s\n", ent->data, p->data->to);
                 }
             }
 
@@ -123,62 +117,130 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
  * Report
  ****************************************/
 
-static inline int print_rep(char *rel, ReportTree *tree, int space)
+static char *gb_report_cache[REPORT_TREES] = {0};
+
+
+
+static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 {
-    static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
-    int max = 1;
+    static int allocated[REPORT_TREES];
+    static int last_used[REPORT_TREES];
+
     int out_last = 0;
-    int used = 0;
 
-    static RelationNameNode *stack[20];
-    ReportNode *curr = tree->root;
-
-    if(curr)
+    if(tree->modified)
     {
 
-        while(curr != &rep_sentinel || used > 0)
+        static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
+        int max = 1;
+        int used = 0;
+
+        static RelationNameNode *stack[20];
+        ReportNode *curr = tree->root;
+
+        if (curr)
         {
-            while(curr != &rep_sentinel)
+
+            while (curr != &rep_sentinel || used > 0)
             {
-                stack[used] = curr;
-                used++;
-                curr = curr->left;
+                while (curr != &rep_sentinel)
+                {
+                    stack[used] = curr;
+                    used++;
+                    curr = curr->left;
+                }
+
+                curr = stack[used - 1];
+                used--;
+
+                //do shit
+                //reset on greater
+                if (curr->count > max)
+                {
+                    out[0] = curr;
+                    max = curr->count;
+                    out_last = 1;
+                } else if (curr->count == max) // append on equal
+                {
+                    out[out_last] = curr;
+                    out_last++;
+                }
+
+                curr = curr->right;
+
             }
 
-            curr = stack[used-1];
-            used--;
-
-            //do shit
-            //reset on greater
-            if(curr->count > max)
-            {
-                out[0] = curr;
-                max = curr->count;
-                out_last = 1;
-            }
-            else if(curr->count == max) // append on equal
-            {
-                out[out_last] = curr;
-                out_last++;
-            }
-
-            curr = curr->right;
         }
 
+        if(!gb_report_cache[rel_id])
+        {
+            gb_report_cache[rel_id] = malloc(REPORT_BUFFER_SIZE);
+            allocated[rel_id] = REPORT_BUFFER_SIZE;
+        }
+
+        last_used[rel_id] = 0;
+
+
+        #define GRCP gb_report_cache[rel_id]
+        #define AP allocated[rel_id]
+        #define LU last_used[rel_id]
+
+        if (out_last > 0)
+        {
+            if (space) printf(" ");
+
+            int len = strlen(rel);
+
+            if(LU + len > AP)
+            {
+                AP += REPORT_BUFFER_SIZE;
+                GRCP = realloc(GRCP, AP);
+            }
+
+            memcpy(GRCP + LU, rel, len);
+            LU += len;
+
+            //printf("%s", rel);
+
+            for (int i = 0; i < out_last; i++)
+            {
+                len = strlen(out[i]->data); // can optimize
+
+                if(LU + len + 1> AP)
+                {
+                    AP += REPORT_BUFFER_SIZE;
+                    GRCP = realloc(GRCP, AP);
+                }
+
+                GRCP[LU] = ' ';
+                memcpy(GRCP + 1 + LU, out[i]->data, len);
+                LU += len + 1;
+
+                //printf(" %s", out[i]->data);
+
+            }
+
+            if(LU + 9 > AP)
+            {
+                AP += REPORT_BUFFER_SIZE;
+                GRCP = realloc(GRCP, AP);
+            }
+            LU += sprintf(GRCP + LU, " %d;", max);
+            //printf(" %d;", max);
+        }
     }
-
-
-    if(out_last > 0)
+    else
     {
-        if(space) printf(" ");
-
-        printf("%s", rel);
-        for (int i = 0; i < out_last; i++)
-        {
-            printf(" %s", out[i]->data);
-        }
-        printf(" %d;", max);
+        out_last = 1;
     }
+
+    printf( space ? " %s" : "%s" ,GRCP);
+
+    #undef GRCP
+    #undef AP
+    #undef LU
+
+    tree->modified = 0;
 
     return out_last;
 }
@@ -210,7 +272,7 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
             //do shit
             if(reports[curr->id] && reports[curr->id]->root)
             {
-                int res = print_rep(curr->data, reports[curr->id], print);
+                int res = print_rep(curr->data, curr->id, reports[curr->id], print);
 
                 if(res > 0) print = 1;
             }
@@ -432,7 +494,10 @@ int main(int argc, char** argv)
             rep_clean(reports[i]);
             free(reports[i]);
         }
+        if(gb_report_cache[i])
+            free(gb_report_cache[i]);
     }
+
 
     #ifdef DEBUG
     if(fl) fclose(fl);

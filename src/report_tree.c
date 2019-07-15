@@ -12,6 +12,7 @@ typedef struct s_ReportNode
 } ReportNode;
 typedef struct
 {
+    int modified;
     ReportNode *root;
 } ReportTree;
 static ReportNode *rep_liear_stack[30];
@@ -19,6 +20,7 @@ ReportTree *rep_init()
 {
     ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
+    t->modified = 1;
     return t;
 }
 static ReportNode rep_sentinel = {0, 0, 0, &rep_sentinel, &rep_sentinel};
@@ -122,6 +124,8 @@ static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
 }
 ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
 {
+    tree->modified = 1;
+
     int cmp = 0;
     ReportNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &rep_sentinel)
@@ -252,6 +256,9 @@ void rep_delete(ReportTree *tree, ReportNode *z)
 {
     if (!z)
         return;
+
+    tree->modified = 1;
+
     ReportNode *x, *y;
     if (z->left == &rep_sentinel || z->right == &rep_sentinel)
     {
