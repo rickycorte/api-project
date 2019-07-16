@@ -2,6 +2,7 @@
 typedef struct s_EntityNode
 {
     char *data;
+    int relations;
     int color;
     struct s_EntityNode *parent, *right, *left;
 } EntityNode;
@@ -136,6 +137,7 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     node->left = &et_sentinel;
     node->right = &et_sentinel;
     node->parent = parent;
+    node->relations = 0;
     if (parent)
     {
         if (cmp > 0)
@@ -275,6 +277,7 @@ void et_delete(EntityTree *tree, EntityNode *z)
         char *temp = z->data;
         z->data = y->data;
         y->data = temp;
+        z->relations = y->relations;
     }
     if (y->color == 0)
         et_deleteFix(tree, x);
