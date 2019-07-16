@@ -136,7 +136,7 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
         int max = 1;
         int used = 0;
 
-        static RelationNameNode *stack[20];
+        static ReportNode *stack[20];
         ReportNode *curr = tree->root;
 
         if (curr)
@@ -234,7 +234,14 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
     }
 
     if(LU > 0)
-        printf( space ? " %s" : "%s" , GRCP);
+    {
+        if(space)
+            fwrite(" ", 1, 1, stdout);
+
+        fwrite(GRCP, 1, LU, stdout);
+
+        //printf( space ? " %s" : "%s" , GRCP);
+    }
 
     #undef GRCP
     #undef AP
@@ -282,9 +289,9 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
     }
 
     if(!print)
-        printf("none\n");
+        fwrite("none\n", 1, 5, stdout);
     else
-        printf("\n");
+        fwrite("\n", 1, 1, stdout);
 
 }
 
