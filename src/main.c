@@ -15,9 +15,10 @@
     #define DEBUG_PRINT(...)
 #endif
 
-#include "bench.c"
-
-#include "rbtree_template.h"
+#ifdef DEBUG
+    #include "bench.c"
+    #include "rbtree_template.h"
+#endif
 
 #ifdef DEBUG
     #define FORCE_INLINE __attribute__((always_inline)) inline
@@ -336,7 +337,7 @@ int main(int argc, char** argv)
     FILE *fl = fopen("test.txt","r");
     if(!fl) fl= stdin;
     #else
-    FILE *fl = stdin
+    FILE *fl = stdin;
     #endif
     
     /*
