@@ -1,8 +1,4 @@
 
-static FORCE_INLINE char *rep_allocate(char *data) { return data; }
-static FORCE_INLINE int rep_compare(char *x, char *y) { return strcmp(y, x); }
-static FORCE_INLINE void rep_deallocate(char *data) {  }
-
 typedef struct s_ReportNode
 {
     char *data;
@@ -130,7 +126,7 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     ReportNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &rep_sentinel)
     {
-        cmp = rep_compare(itr->data, to);
+        cmp = strcmp(to, itr->data);
         if (cmp == 0)
         {
             *inserted = 0;
@@ -141,7 +137,7 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
         itr = (cmp > 0) ? itr->right : itr->left;
     }
     ReportNode *node = malloc(sizeof(ReportNode));
-    node->data = rep_allocate(to);
+    node->data = to;
     node->color = 1;
     node->left = &rep_sentinel;
     node->right = &rep_sentinel;
@@ -168,7 +164,7 @@ ReportNode *rep_search(ReportTree *tree, char *to)
     ReportNode *itr = tree->root;
     while (itr && itr != &rep_sentinel)
     {
-        int cmp = rep_compare(itr->data, to);
+        int cmp = strcmp(to, itr->data);
         if (cmp == 0)
             break;
         else
@@ -293,7 +289,6 @@ void rep_delete(ReportTree *tree, ReportNode *z)
     }
     if (y->color == 0)
         rep_deleteFix(tree, x);
-    rep_deallocate(y->data);
     free(y);
     if (tree->root == &rep_sentinel)
         tree->root = NULL;
@@ -319,7 +314,6 @@ void rep_clean(ReportTree *tree)
             rep_liear_stack[used] = p->left;
             used++;
         }
-        rep_deallocate(p->data);
         free(p);
     }
 }

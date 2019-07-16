@@ -90,6 +90,7 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
                 if(rep)
                 {
                     rep->count--;
+                    reports[p->data->rel_id]->modified = 1;
                 }
             }
 
@@ -172,23 +173,20 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 
         }
 
-        if(!gb_report_cache[rel_id])
-        {
-            gb_report_cache[rel_id] = malloc(REPORT_BUFFER_SIZE);
-            allocated[rel_id] = REPORT_BUFFER_SIZE;
-        }
-
-        last_used[rel_id] = 0;
-
-
         #define GRCP gb_report_cache[rel_id]
         #define AP allocated[rel_id]
         #define LU last_used[rel_id]
 
+        if(!GRCP)
+        {
+            GRCP = malloc(REPORT_BUFFER_SIZE);
+            AP = REPORT_BUFFER_SIZE;
+        }
+
+        last_used[rel_id] = 0;
+
         if (out_last > 0)
         {
-            if (space) printf(" ");
-
             int len = strlen(rel);
 
             if(LU + len > AP)
@@ -228,13 +226,15 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
             LU += sprintf(GRCP + LU, " %d;", max);
             //printf(" %d;", max);
         }
+
     }
     else
     {
-        out_last = 1;
+        out_last = LU;
     }
 
-    printf( space ? " %s" : "%s" ,GRCP);
+    if(LU > 0)
+        printf( space ? " %s" : "%s" , GRCP);
 
     #undef GRCP
     #undef AP
@@ -285,6 +285,7 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
         printf("none\n");
     else
         printf("\n");
+
 }
 
 
@@ -448,6 +449,7 @@ int main(int argc, char** argv)
                     if(rep)
                     {
                         rep->count--;
+                        reports[rel_id]->modified = 1;
                     }
                     else
                     {
