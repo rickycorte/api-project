@@ -28,7 +28,9 @@
 
 
 
-#include "entity_tree.c"
+//#include "entity_tree.c"
+
+#include "ent_avl_tree.c"
 #include "relation_name_tree.c"
 #include "relation_storage_tree.c"
 #include "report_tree.c"
@@ -41,7 +43,7 @@ static RelationStorageData **rm_list = NULL;
 
 
 
-static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entities, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
+static inline void remove_all_relations_for(AvlNode *ent, AvlTree *entities, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
 {
     static RelationStorageNode *stack[30];
 
@@ -100,7 +102,7 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
                         reports[p->data->rel_id]->modified = 1;
                     }
 
-                    EntityNode *dest = et_search(entities, p->data->to);
+                    AvlNode *dest = avl_search(entities, p->data->to);
                     dest->relations--;
 
                 }
@@ -313,10 +315,11 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
  * MAIN
  ****************************************/
 
+
 int main(int argc, char** argv)
 {
 
-    EntityTree *entities = et_init();
+    AvlTree *entities = avl_init();
     RelationNameTree *relationNames = rel_init();
     RelationStorageTree *relations = rst_init();
 
@@ -359,7 +362,7 @@ int main(int argc, char** argv)
                 command[0][rsz-8] = '\0';
 
                 int res;
-                et_insert(entities, command[0], &res);
+                avl_insert(entities, command[0], &res);
                 if(!res)
                 {
                     free(command[0]);
@@ -389,10 +392,10 @@ int main(int argc, char** argv)
 
                 // do insertion if possibile
                 int res = 0;
-                EntityNode *source = et_search(entities, command[0]);
+                AvlNode *source = avl_search(entities, command[0]);
                 if(source)
                 {
-                    EntityNode *dest = et_search(entities, command[1]);
+                    AvlNode *dest = avl_search(entities, command[1]);
                     if(dest)
                     {
 
@@ -433,11 +436,11 @@ int main(int argc, char** argv)
                 memcpy(command[0], (buffer + 7), rsz-8);
                 command[0][rsz-8] = '\0';
 
-                EntityNode *res = et_search(entities, command[0]);
+                AvlNode *res = avl_search(entities, command[0]);
                 if(res)
                 {
                     remove_all_relations_for(res, entities, relations, reports, relationNames->count);
-                    et_delete(entities, res);
+                    avl_delete(entities, res);
                 }
                 free(command[0]);
                 
@@ -468,8 +471,8 @@ int main(int argc, char** argv)
                 {
                     int rel_id = rst_delete(relations, del);
 
-                    EntityNode* dest =  et_search(entities, command[1]);
-                    EntityNode* source = et_search(entities, command[0]);
+                    AvlNode* dest =  avl_search(entities, command[1]);
+                    AvlNode* source = avl_search(entities, command[0]);
 
                     source->relations--;
                     dest->relations--;
@@ -509,7 +512,7 @@ int main(int argc, char** argv)
     //rm buffer
     free(buffer);
 
-    et_clean(entities);
+    avl_clean(entities);
     free(entities);
 
     rel_clean(relationNames);

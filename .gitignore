@@ -17,3 +17,4 @@ Makefile
 cmake_install.cmake
 release/a.out
 release/test.txt
+release/res.txt
