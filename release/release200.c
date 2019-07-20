@@ -1952,7 +1952,6 @@ int main(int argc, char** argv)
 
     } while (!exit_loop);
 
-
     //rm buffer
     free(buffer);
 
