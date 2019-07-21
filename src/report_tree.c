@@ -3,23 +3,35 @@ typedef struct s_ReportNode
 {
     char *data;
     int count;
-    int color;
+    char color;
     struct s_ReportNode *parent, *right, *left;
 } ReportNode;
+
+
 typedef struct
 {
     int modified;
+    int max;
     ReportNode *root;
 } ReportTree;
+
+
 static ReportNode *rep_liear_stack[30];
+
+
 ReportTree *rep_init()
 {
     ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
     t->modified = 1;
+    t->max = 0;
     return t;
 }
+
+
 static ReportNode rep_sentinel = {0, 0, 0, &rep_sentinel, &rep_sentinel};
+
+
 static inline void rep_leftRotation(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y = x->right;
@@ -43,6 +55,8 @@ static inline void rep_leftRotation(ReportTree *tree, ReportNode *x)
     if (x != &rep_sentinel)
         x->parent = y;
 }
+
+
 static inline void rep_rightRotation(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y = x->left;
@@ -66,6 +80,8 @@ static inline void rep_rightRotation(ReportTree *tree, ReportNode *x)
     if (x != &rep_sentinel)
         x->parent = y;
 }
+
+
 static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y;
@@ -118,9 +134,10 @@ static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
     }
     tree->root->color = 0;
 }
+
+
 ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
 {
-    tree->modified = 1;
 
     int cmp = 0;
     ReportNode *parent = NULL, *itr = tree->root;
@@ -131,6 +148,10 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
         {
             *inserted = 0;
             itr->count++;
+
+            if(itr->count >= tree->max)
+                tree->modified = 1;
+
             return itr;
         }
         parent = itr;
@@ -143,6 +164,9 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     node->right = &rep_sentinel;
     node->parent = parent;
     node->count = 1; // start at 1 relation
+
+    if(node->count >= tree->max)
+        tree->modified = 1;
 
     if (parent)
     {
@@ -159,6 +183,8 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     *inserted = 1;
     return node;
 }
+
+
 ReportNode *rep_search(ReportTree *tree, char *to)
 {
     ReportNode *itr = tree->root;
@@ -178,6 +204,8 @@ ReportNode *rep_treeMin(ReportNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
 {
     ReportNode *w;
@@ -248,6 +276,8 @@ static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
     }
     x->color = 0;
 }
+
+
 void rep_delete(ReportTree *tree, ReportNode *z)
 {
     if (!z)
@@ -293,6 +323,8 @@ void rep_delete(ReportTree *tree, ReportNode *z)
     if (tree->root == &rep_sentinel)
         tree->root = NULL;
 }
+
+
 void rep_clean(ReportTree *tree)
 {
     int used = 1;
@@ -317,6 +349,8 @@ void rep_clean(ReportTree *tree)
         free(p);
     }
 }
+
+
 void rep_count(ReportTree *tree)
 {
     int count = 0;

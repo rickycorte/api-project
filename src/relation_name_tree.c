@@ -6,7 +6,7 @@ static FORCE_INLINE void rel_deallocate(char *data) { free(data); }
 typedef struct s_RelationNameNode
 {
     char *data;
-    int color;
+    char color;
     int id;
     struct s_RelationNameNode *parent, *right, *left;
 } RelationNameNode;
@@ -17,7 +17,7 @@ typedef struct
     RelationNameNode *root;
 } RelationNameTree;
 
-static RelationNameNode *rel_liear_stack[30];
+static RelationNameNode *rel_liear_stack[6];
 
 RelationNameTree *rel_init()
 {
@@ -26,7 +26,11 @@ RelationNameTree *rel_init()
     t->count = 0;
     return t;
 }
+
+
 static RelationNameNode rel_sentinel = {0, 0, 0, 0, &rel_sentinel, &rel_sentinel};
+
+
 static inline void rel_leftRotation(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y = x->right;
@@ -50,6 +54,8 @@ static inline void rel_leftRotation(RelationNameTree *tree, RelationNameNode *x)
     if (x != &rel_sentinel)
         x->parent = y;
 }
+
+
 static inline void rel_rightRotation(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y = x->left;
@@ -73,6 +79,8 @@ static inline void rel_rightRotation(RelationNameTree *tree, RelationNameNode *x
     if (x != &rel_sentinel)
         x->parent = y;
 }
+
+
 static inline void rel_insertFix(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y;
@@ -125,6 +133,8 @@ static inline void rel_insertFix(RelationNameTree *tree, RelationNameNode *x)
     }
     tree->root->color = 0;
 }
+
+
 RelationNameNode *rel_insert(RelationNameTree *tree, char *relation, int *inserted)
 {
     int cmp = 0;
@@ -165,6 +175,8 @@ RelationNameNode *rel_insert(RelationNameTree *tree, char *relation, int *insert
     *inserted = 1;
     return node;
 }
+
+
 RelationNameNode *rel_search(RelationNameTree *tree, char *relation)
 {
     RelationNameNode *itr = tree->root;
@@ -184,6 +196,8 @@ RelationNameNode *rel_treeMin(RelationNameNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *w;
@@ -254,6 +268,8 @@ static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
     }
     x->color = 0;
 }
+
+
 void rel_delete(RelationNameTree *tree, RelationNameNode *z)
 {
     if (!z)
@@ -297,6 +313,8 @@ void rel_delete(RelationNameTree *tree, RelationNameNode *z)
     if (tree->root == &rel_sentinel)
         tree->root = NULL;
 }
+
+
 void rel_clean(RelationNameTree *tree)
 {
     int used = 1;
@@ -322,6 +340,8 @@ void rel_clean(RelationNameTree *tree)
         free(p);
     }
 }
+
+
 void rel_count(RelationNameTree *tree)
 {
     int count = 0;

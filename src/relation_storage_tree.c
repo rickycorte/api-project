@@ -10,12 +10,14 @@ typedef struct
     int rel_id;
 } RelationStorageData;
 
+
 typedef struct s_RelationStorageNode
 {
     RelationStorageData *data;
-    int color;
+    char color;
     struct s_RelationStorageNode *parent, *right, *left;
 } RelationStorageNode;
+
 
 typedef struct
 {
@@ -82,6 +84,8 @@ static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNo
     if (x != &rst_sentinel)
         x->parent = y;
 }
+
+
 static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y = x->left;
@@ -105,6 +109,8 @@ static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageN
     if (x != &rst_sentinel)
         x->parent = y;
 }
+
+
 static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y;
@@ -157,6 +163,8 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
     }
     tree->root->color = 0;
 }
+
+
 RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int rel_id, int *inserted)
 {
     int cmp = 0;
@@ -194,6 +202,8 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     *inserted = 1;
     return node;
 }
+
+
 RelationStorageNode *rst_search(RelationStorageTree *tree, char *from, char *to, char *rel)
 {
     RelationStorageNode *itr = tree->root;
@@ -213,6 +223,8 @@ RelationStorageNode *rst_treeMin(RelationStorageNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *w;
@@ -283,6 +295,8 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
     }
     x->color = 0;
 }
+
+
 /**
  * Delete and return relation of deleted node
  * @param tree
@@ -338,6 +352,8 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
 
     return res;
 }
+
+
 void rst_clean(RelationStorageTree *tree)
 {
     int used = 1;
@@ -363,6 +379,8 @@ void rst_clean(RelationStorageTree *tree)
         free(p);
     }
 }
+
+
 void rst_count(RelationStorageTree *tree)
 {
     int count = 0;

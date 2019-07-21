@@ -3,21 +3,29 @@ typedef struct s_EntityNode
 {
     char *data;
     int relations;
-    int color;
+    char color;
     struct s_EntityNode *parent, *right, *left;
 } EntityNode;
+
+
 typedef struct
 {
     EntityNode *root;
 } EntityTree;
+
+
 static EntityNode *et_liear_stack[30];
+
 EntityTree *et_init()
 {
     EntityTree *t = malloc(sizeof(EntityTree));
     t->root = NULL;
     return t;
 }
+
 static EntityNode et_sentinel = {0, 0, 0, &et_sentinel, &et_sentinel};
+
+
 static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y = x->right;
@@ -41,6 +49,8 @@ static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
     if (x != &et_sentinel)
         x->parent = y;
 }
+
+
 static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y = x->left;
@@ -64,6 +74,8 @@ static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
     if (x != &et_sentinel)
         x->parent = y;
 }
+
+
 static inline void et_insertFix(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y;
@@ -116,6 +128,8 @@ static inline void et_insertFix(EntityTree *tree, EntityNode *x)
     }
     tree->root->color = 0;
 }
+
+
 EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
 {
     int cmp = 0;
@@ -153,6 +167,8 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     *inserted = 1;
     return node;
 }
+
+
 EntityNode *et_search(EntityTree *tree, char *entity)
 {
     EntityNode *itr = tree->root;
@@ -173,6 +189,8 @@ EntityNode *et_treeMin(EntityNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
 {
     EntityNode *w;
@@ -243,6 +261,8 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
     }
     x->color = 0;
 }
+
+
 void et_delete(EntityTree *tree, EntityNode *z)
 {
     if (!z)
@@ -286,6 +306,8 @@ void et_delete(EntityTree *tree, EntityNode *z)
     if (tree->root == &et_sentinel)
         tree->root = NULL;
 }
+
+
 void et_clean(EntityTree *tree)
 {
     int used = 1;
@@ -311,6 +333,8 @@ void et_clean(EntityTree *tree)
         free(p);
     }
 }
+
+
 void et_count(EntityTree *tree)
 {
     int count = 0;

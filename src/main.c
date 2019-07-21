@@ -6,8 +6,8 @@
 
 #define INPUT_BUFFER_SIZE 1024
 #define REPORT_OUT_QUEUE_SIZE 512
-#define REPORT_TREES 50
-#define REPORT_BUFFER_SIZE 1024
+#define REPORT_TREES 35
+#define REPORT_BUFFER_SIZE 512
 
 #ifdef DEBUG
     #define DEBUG_PRINT printf
@@ -96,8 +96,13 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
                     ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
                     if (rep)
                     {
+                        //uncache only on max change
+                        if(rep->count == reports[p->data->rel_id]->max)
+                        {
+                            reports[p->data->rel_id]->modified = 1;
+                        }
+
                         rep->count--;
-                        reports[p->data->rel_id]->modified = 1;
                     }
 
                     EntityNode *dest = et_search(entities, p->data->to);
@@ -121,6 +126,13 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
     {
         ReportNode *rep = rep_search(reports[i], ent->data);
         rep_delete(reports[i], rep);
+
+        //uncache only on max change
+        if(rep && rep->count == reports[i]->max)
+        {
+            reports[i]->modified = 1;
+        }
+
     }
 
 
@@ -184,6 +196,8 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 
             }
 
+            tree->max = max;
+
         }
 
         #define GRCP gb_report_cache[rel_id]
@@ -238,6 +252,12 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
             }
             LU += sprintf(GRCP + LU, " %d;", max);
             //printf(" %d;", max);
+
+            if(AP - LU > 50) // reallocate to not waste ram
+            {
+                GRCP = realloc(GRCP, LU + 1);
+                AP = LU + 1;
+            }
         }
 
     }
@@ -269,7 +289,7 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 static inline void report(RelationNameTree *relNames, ReportTree *reports[])
 {
     int used = 0;
-    static RelationNameNode *stack[20];
+    static RelationNameNode *stack[6];
     RelationNameNode *curr = relNames->root;
 
     int print = 0;
@@ -477,8 +497,13 @@ int main(int argc, char** argv)
                     ReportNode *rep = rep_search(reports[rel_id], command[1]);
                     if(rep)
                     {
+                        //uncache only on max change
+                        if(rep->count == reports[rel_id]->max)
+                        {
+                            reports[rel_id]->modified = 1;
+                        }
+
                         rep->count--;
-                        reports[rel_id]->modified = 1;
                     }
                     else
                     {
