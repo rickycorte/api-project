@@ -5,9 +5,8 @@ typedef struct
 {
     char *from;
     char *to;
-    char *rel;
+    RelationNameNode *rel;
     void *tree_node;
-    int rel_id;
 } RelationStorageData;
 
 
@@ -25,24 +24,13 @@ typedef struct
 } RelationStorageTree;
 
 
-
-static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel, int rel_id)
-{
-    RelationStorageData *dt = malloc(sizeof(RelationStorageData));
-    dt->from = from;
-    dt->to = to;
-    dt->rel = rel;
-    dt->rel_id = rel_id;
-    return dt;
-}
-
 static inline int rst_compare(RelationStorageData *x, char *from, char *to, char *rel)
 {
     int res = strcmp(from, x->from);
     if(res) return res;
     res = strcmp(to, x->to);
     if(res) return res;
-    return strcmp(rel, x->rel);
+    return strcmp(rel, x->rel->data);
     //TODO: provare a comparare gli id di relazione per risparmiare una strcmp
 }
 
@@ -165,13 +153,13 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
 }
 
 
-RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int rel_id, int *inserted)
+RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, RelationNameNode *rel, int *inserted)
 {
     int cmp = 0;
     RelationStorageNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &rst_sentinel)
     {
-        cmp = rst_compare(itr->data, from, to, rel);
+        cmp = rst_compare(itr->data, from, to, rel->data);
         if (cmp == 0)
         {
             *inserted = 0;
@@ -181,7 +169,11 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
         itr = (cmp > 0) ? itr->right : itr->left;
     }
     RelationStorageNode *node = malloc(sizeof(RelationStorageNode));
-    node->data = rst_allocate(from, to, rel, rel_id);
+    node->data = malloc(sizeof(RelationStorageData));
+    node->data->from = from;
+    node->data->to = to;
+    node->data->rel = rel;
+
     node->data->tree_node = node;
     node->color = 1;
     node->left = &rst_sentinel;
@@ -342,9 +334,9 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
     if (y->color == 0)
         rst_deleteFix(tree, x);
 
-    int res = y->data->rel_id;
+    int res = y->data->rel->id;
 
-    rst_deallocate(y->data);
+    free(y->data);
     free(y);
 
     if(tree->root == &rst_sentinel)
@@ -375,7 +367,7 @@ void rst_clean(RelationStorageTree *tree)
             rst_liear_stack[used] = p->left;
             used++;
         }
-        rst_deallocate(p->data);
+        free(p->data);
         free(p);
     }
 }

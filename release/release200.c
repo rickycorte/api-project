@@ -2,17 +2,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#define DEBUG
 
 #define INPUT_BUFFER_SIZE 1024
 #define REPORT_OUT_QUEUE_SIZE 512
-#define REPORT_TREES 50
-#define REPORT_BUFFER_SIZE 1024
+#define REPORT_TREES 35
+#define REPORT_BUFFER_SIZE 512
 
 #ifdef DEBUG
     #define DEBUG_PRINT printf
 #else
     #define DEBUG_PRINT(...)
+#endif
+
+#ifdef DEBUG
+    #include "bench.c"
+    #include "rbtree_template.h"
 #endif
 
 #ifdef DEBUG
@@ -22,33 +26,33 @@
 #endif
 
 
-
-/**********************************************************
- * 
- * ENTITY TREEE
- *  
- *********************************************************/
-
-
 typedef struct s_EntityNode
 {
     char *data;
     int relations;
-    int color;
+    char color;
     struct s_EntityNode *parent, *right, *left;
 } EntityNode;
+
+
 typedef struct
 {
     EntityNode *root;
 } EntityTree;
+
+
 static EntityNode *et_liear_stack[30];
+
 EntityTree *et_init()
 {
     EntityTree *t = malloc(sizeof(EntityTree));
     t->root = NULL;
     return t;
 }
+
 static EntityNode et_sentinel = {0, 0, 0, &et_sentinel, &et_sentinel};
+
+
 static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y = x->right;
@@ -72,6 +76,8 @@ static inline void et_leftRotation(EntityTree *tree, EntityNode *x)
     if (x != &et_sentinel)
         x->parent = y;
 }
+
+
 static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y = x->left;
@@ -95,6 +101,8 @@ static inline void et_rightRotation(EntityTree *tree, EntityNode *x)
     if (x != &et_sentinel)
         x->parent = y;
 }
+
+
 static inline void et_insertFix(EntityTree *tree, EntityNode *x)
 {
     EntityNode *y;
@@ -147,6 +155,8 @@ static inline void et_insertFix(EntityTree *tree, EntityNode *x)
     }
     tree->root->color = 0;
 }
+
+
 EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
 {
     int cmp = 0;
@@ -184,6 +194,8 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     *inserted = 1;
     return node;
 }
+
+
 EntityNode *et_search(EntityTree *tree, char *entity)
 {
     EntityNode *itr = tree->root;
@@ -204,6 +216,8 @@ EntityNode *et_treeMin(EntityNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
 {
     EntityNode *w;
@@ -274,6 +288,8 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
     }
     x->color = 0;
 }
+
+
 void et_delete(EntityTree *tree, EntityNode *z)
 {
     if (!z)
@@ -317,6 +333,8 @@ void et_delete(EntityTree *tree, EntityNode *z)
     if (tree->root == &et_sentinel)
         tree->root = NULL;
 }
+
+
 void et_clean(EntityTree *tree)
 {
     int used = 1;
@@ -342,6 +360,8 @@ void et_clean(EntityTree *tree)
         free(p);
     }
 }
+
+
 void et_count(EntityTree *tree)
 {
     int count = 0;
@@ -368,11 +388,6 @@ void et_count(EntityTree *tree)
 }
 
 
-/**********************************************************
- * 
- * RELATION NAME TREEE
- *  
- *********************************************************/
 
 
 static FORCE_INLINE char *rel_allocate(char *data) { return data; }
@@ -382,7 +397,7 @@ static FORCE_INLINE void rel_deallocate(char *data) { free(data); }
 typedef struct s_RelationNameNode
 {
     char *data;
-    int color;
+    char color;
     int id;
     struct s_RelationNameNode *parent, *right, *left;
 } RelationNameNode;
@@ -393,7 +408,7 @@ typedef struct
     RelationNameNode *root;
 } RelationNameTree;
 
-static RelationNameNode *rel_liear_stack[30];
+static RelationNameNode *rel_liear_stack[6];
 
 RelationNameTree *rel_init()
 {
@@ -402,7 +417,11 @@ RelationNameTree *rel_init()
     t->count = 0;
     return t;
 }
+
+
 static RelationNameNode rel_sentinel = {0, 0, 0, 0, &rel_sentinel, &rel_sentinel};
+
+
 static inline void rel_leftRotation(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y = x->right;
@@ -426,6 +445,8 @@ static inline void rel_leftRotation(RelationNameTree *tree, RelationNameNode *x)
     if (x != &rel_sentinel)
         x->parent = y;
 }
+
+
 static inline void rel_rightRotation(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y = x->left;
@@ -449,6 +470,8 @@ static inline void rel_rightRotation(RelationNameTree *tree, RelationNameNode *x
     if (x != &rel_sentinel)
         x->parent = y;
 }
+
+
 static inline void rel_insertFix(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *y;
@@ -501,6 +524,8 @@ static inline void rel_insertFix(RelationNameTree *tree, RelationNameNode *x)
     }
     tree->root->color = 0;
 }
+
+
 RelationNameNode *rel_insert(RelationNameTree *tree, char *relation, int *inserted)
 {
     int cmp = 0;
@@ -541,6 +566,8 @@ RelationNameNode *rel_insert(RelationNameTree *tree, char *relation, int *insert
     *inserted = 1;
     return node;
 }
+
+
 RelationNameNode *rel_search(RelationNameTree *tree, char *relation)
 {
     RelationNameNode *itr = tree->root;
@@ -560,6 +587,8 @@ RelationNameNode *rel_treeMin(RelationNameNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
 {
     RelationNameNode *w;
@@ -630,6 +659,8 @@ static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
     }
     x->color = 0;
 }
+
+
 void rel_delete(RelationNameTree *tree, RelationNameNode *z)
 {
     if (!z)
@@ -673,6 +704,8 @@ void rel_delete(RelationNameTree *tree, RelationNameNode *z)
     if (tree->root == &rel_sentinel)
         tree->root = NULL;
 }
+
+
 void rel_clean(RelationNameTree *tree)
 {
     int used = 1;
@@ -698,6 +731,8 @@ void rel_clean(RelationNameTree *tree)
         free(p);
     }
 }
+
+
 void rel_count(RelationNameTree *tree)
 {
     int count = 0;
@@ -724,13 +759,6 @@ void rel_count(RelationNameTree *tree)
 }
 
 
-/**********************************************************
- * 
- * RELATION STORAGE
- *  
- *********************************************************/
-
-
 #include <stdlib.h>
 
 
@@ -743,12 +771,14 @@ typedef struct
     int rel_id;
 } RelationStorageData;
 
+
 typedef struct s_RelationStorageNode
 {
     RelationStorageData *data;
-    int color;
+    char color;
     struct s_RelationStorageNode *parent, *right, *left;
 } RelationStorageNode;
+
 
 typedef struct
 {
@@ -815,6 +845,8 @@ static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNo
     if (x != &rst_sentinel)
         x->parent = y;
 }
+
+
 static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y = x->left;
@@ -838,6 +870,8 @@ static inline void rst_rightRotation(RelationStorageTree *tree, RelationStorageN
     if (x != &rst_sentinel)
         x->parent = y;
 }
+
+
 static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y;
@@ -890,6 +924,8 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
     }
     tree->root->color = 0;
 }
+
+
 RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int rel_id, int *inserted)
 {
     int cmp = 0;
@@ -927,6 +963,8 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     *inserted = 1;
     return node;
 }
+
+
 RelationStorageNode *rst_search(RelationStorageTree *tree, char *from, char *to, char *rel)
 {
     RelationStorageNode *itr = tree->root;
@@ -946,6 +984,8 @@ RelationStorageNode *rst_treeMin(RelationStorageNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *w;
@@ -1016,6 +1056,8 @@ static inline void rst_deleteFix(RelationStorageTree *tree, RelationStorageNode 
     }
     x->color = 0;
 }
+
+
 /**
  * Delete and return relation of deleted node
  * @param tree
@@ -1071,6 +1113,8 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
 
     return res;
 }
+
+
 void rst_clean(RelationStorageTree *tree)
 {
     int used = 1;
@@ -1096,6 +1140,8 @@ void rst_clean(RelationStorageTree *tree)
         free(p);
     }
 }
+
+
 void rst_count(RelationStorageTree *tree)
 {
     int count = 0;
@@ -1123,33 +1169,39 @@ void rst_count(RelationStorageTree *tree)
 
 
 
-/**********************************************************
- * 
- * REPORT TREE
- *  
- *********************************************************/
-
 typedef struct s_ReportNode
 {
     char *data;
     int count;
-    int color;
+    char color;
     struct s_ReportNode *parent, *right, *left;
 } ReportNode;
+
+
 typedef struct
 {
     int modified;
+    int max;
     ReportNode *root;
 } ReportTree;
+
+
 static ReportNode *rep_liear_stack[30];
+
+
 ReportTree *rep_init()
 {
     ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
     t->modified = 1;
+    t->max = 0;
     return t;
 }
+
+
 static ReportNode rep_sentinel = {0, 0, 0, &rep_sentinel, &rep_sentinel};
+
+
 static inline void rep_leftRotation(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y = x->right;
@@ -1173,6 +1225,8 @@ static inline void rep_leftRotation(ReportTree *tree, ReportNode *x)
     if (x != &rep_sentinel)
         x->parent = y;
 }
+
+
 static inline void rep_rightRotation(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y = x->left;
@@ -1196,6 +1250,8 @@ static inline void rep_rightRotation(ReportTree *tree, ReportNode *x)
     if (x != &rep_sentinel)
         x->parent = y;
 }
+
+
 static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
 {
     ReportNode *y;
@@ -1248,9 +1304,10 @@ static inline void rep_insertFix(ReportTree *tree, ReportNode *x)
     }
     tree->root->color = 0;
 }
+
+
 ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
 {
-    tree->modified = 1;
 
     int cmp = 0;
     ReportNode *parent = NULL, *itr = tree->root;
@@ -1261,6 +1318,10 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
         {
             *inserted = 0;
             itr->count++;
+
+            if(itr->count >= tree->max)
+                tree->modified = 1;
+
             return itr;
         }
         parent = itr;
@@ -1273,6 +1334,9 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     node->right = &rep_sentinel;
     node->parent = parent;
     node->count = 1; // start at 1 relation
+
+    if(node->count >= tree->max)
+        tree->modified = 1;
 
     if (parent)
     {
@@ -1289,6 +1353,8 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     *inserted = 1;
     return node;
 }
+
+
 ReportNode *rep_search(ReportTree *tree, char *to)
 {
     ReportNode *itr = tree->root;
@@ -1308,6 +1374,8 @@ ReportNode *rep_treeMin(ReportNode *tree)
         tree = tree->left;
     return tree;
 }
+
+
 static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
 {
     ReportNode *w;
@@ -1378,6 +1446,8 @@ static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
     }
     x->color = 0;
 }
+
+
 void rep_delete(ReportTree *tree, ReportNode *z)
 {
     if (!z)
@@ -1423,6 +1493,8 @@ void rep_delete(ReportTree *tree, ReportNode *z)
     if (tree->root == &rep_sentinel)
         tree->root = NULL;
 }
+
+
 void rep_clean(ReportTree *tree)
 {
     int used = 1;
@@ -1447,6 +1519,8 @@ void rep_clean(ReportTree *tree)
         free(p);
     }
 }
+
+
 void rep_count(ReportTree *tree)
 {
     int count = 0;
@@ -1472,13 +1546,6 @@ void rep_count(ReportTree *tree)
     printf("Tree elements: %d\n", count);
 }
 
-
-
-/**********************************************************
- * 
- * MAIN
- *  
- *********************************************************/
 
 /****************************************
  * Delete relations
@@ -1543,8 +1610,13 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
                     ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
                     if (rep)
                     {
+                        //uncache only on max change
+                        if(rep->count == reports[p->data->rel_id]->max)
+                        {
+                            reports[p->data->rel_id]->modified = 1;
+                        }
+
                         rep->count--;
-                        reports[p->data->rel_id]->modified = 1;
                     }
 
                     EntityNode *dest = et_search(entities, p->data->to);
@@ -1568,6 +1640,13 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
     {
         ReportNode *rep = rep_search(reports[i], ent->data);
         rep_delete(reports[i], rep);
+
+        //uncache only on max change
+        if(rep && rep->count == reports[i]->max)
+        {
+            reports[i]->modified = 1;
+        }
+
     }
 
 
@@ -1631,6 +1710,8 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 
             }
 
+            tree->max = max;
+
         }
 
         #define GRCP gb_report_cache[rel_id]
@@ -1685,6 +1766,12 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
             }
             LU += sprintf(GRCP + LU, " %d;", max);
             //printf(" %d;", max);
+
+            if(AP - LU > 50) // reallocate to not waste ram
+            {
+                GRCP = realloc(GRCP, LU + 1);
+                AP = LU + 1;
+            }
         }
 
     }
@@ -1716,7 +1803,7 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 static inline void report(RelationNameTree *relNames, ReportTree *reports[])
 {
     int used = 0;
-    static RelationNameNode *stack[20];
+    static RelationNameNode *stack[6];
     RelationNameNode *curr = relNames->root;
 
     int print = 0;
@@ -1924,8 +2011,13 @@ int main(int argc, char** argv)
                     ReportNode *rep = rep_search(reports[rel_id], command[1]);
                     if(rep)
                     {
+                        //uncache only on max change
+                        if(rep->count == reports[rel_id]->max)
+                        {
+                            reports[rel_id]->modified = 1;
+                        }
+
                         rep->count--;
-                        reports[rel_id]->modified = 1;
                     }
                     else
                     {

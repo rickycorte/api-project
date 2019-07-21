@@ -38,6 +38,7 @@
  ****************************************/
 
 static RelationStorageData **rm_list = NULL;
+int alloc_sz = 100;
 
 
 
@@ -55,7 +56,7 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
 
         int stack_used = 1;
 
-        int alloc_sz = 100;
+
         int used = 0;
 
         if (!rm_list)
@@ -93,13 +94,13 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
 
                 if (p->data->from == ent->data)
                 {
-                    ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
+                    ReportNode *rep = rep_search(reports[p->data->rel->id], p->data->to);
                     if (rep)
                     {
                         //uncache only on max change
-                        if(rep->count == reports[p->data->rel_id]->max)
+                        if(rep->count == reports[p->data->rel->id]->max)
                         {
-                            reports[p->data->rel_id]->modified = 1;
+                            reports[p->data->rel->id]->modified = 1;
                         }
 
                         rep->count--;
@@ -419,7 +420,7 @@ int main(int argc, char** argv)
                         RelationNameNode *rel =  rel_insert(relationNames, command[2], &res);
 
                         int r2 = 0;
-                        rst_insert(relations, source->data, dest->data, rel->data, rel->id, &r2);
+                        rst_insert(relations, source->data, dest->data, rel, &r2);
 
 
                         if(r2)
@@ -555,10 +556,14 @@ int main(int argc, char** argv)
     }
 
 
+
     if(rm_list)
         free(rm_list);
 
     #ifdef DEBUG
+
+    DEBUG_PRINT("RM size: %d", alloc_sz);
+
     if(fl) fclose(fl);
 
     double msTm = (ns() - start_tm)/1000000;

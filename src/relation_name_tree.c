@@ -1,8 +1,4 @@
 
-static FORCE_INLINE char *rel_allocate(char *data) { return data; }
-static FORCE_INLINE int rel_compare(char *x, char *y) { return strcmp(y, x); }
-static FORCE_INLINE void rel_deallocate(char *data) { free(data); }
-
 typedef struct s_RelationNameNode
 {
     char *data;
@@ -182,136 +178,13 @@ RelationNameNode *rel_search(RelationNameTree *tree, char *relation)
     RelationNameNode *itr = tree->root;
     while (itr && itr != &rel_sentinel)
     {
-        int cmp = rel_compare(itr->data, relation);
+        int cmp = strcmp(relation, itr->data);
         if (cmp == 0)
             break;
         else
             itr = (cmp > 0) ? itr->right : itr->left;
     }
     return itr != &rel_sentinel ? itr : NULL;
-}
-RelationNameNode *rel_treeMin(RelationNameNode *tree)
-{
-    while (tree->left != &rel_sentinel)
-        tree = tree->left;
-    return tree;
-}
-
-
-static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
-{
-    RelationNameNode *w;
-    while (x != tree->root && x->color == 0)
-    {
-        if (x == x->parent->left)
-        {
-            w = x->parent->right;
-            if (w->color == 1)
-            {
-                w->color = 0;
-                x->parent->color = 1;
-                rel_leftRotation(tree, x->parent);
-                w = x->parent->right;
-            }
-            if (w->left->color == 0 && w->right->color == 0)
-            {
-                w->color = 1;
-                x = x->parent;
-            }
-            else
-            {
-                if (w->right->color == 0)
-                {
-                    w->left->color = 0;
-                    w->color = 1;
-                    rel_rightRotation(tree, w);
-                    w = x->parent->right;
-                }
-                w->color = x->parent->color;
-                x->parent->color = 0;
-                w->right->color = 0;
-                rel_leftRotation(tree, x->parent);
-                x = tree->root;
-            }
-        }
-        else
-        {
-            w = x->parent->left;
-            if (w->color == 1)
-            {
-                w->color = 0;
-                x->parent->color = 1;
-                rel_rightRotation(tree, x->parent);
-                w = x->parent->left;
-            }
-            if (w->right->color == 0 && w->left->color == 0)
-            {
-                w->color = 1;
-                x = x->parent;
-            }
-            else
-            {
-                if (w->left->color == 0)
-                {
-                    w->right->color = 0;
-                    w->color = 1;
-                    rel_leftRotation(tree, w);
-                    w = x->parent->left;
-                }
-                w->color = x->parent->color;
-                x->parent->color = 0;
-                w->left->color = 0;
-                rel_rightRotation(tree, x->parent);
-                x = tree->root;
-            }
-        }
-    }
-    x->color = 0;
-}
-
-
-void rel_delete(RelationNameTree *tree, RelationNameNode *z)
-{
-    if (!z)
-        return;
-    RelationNameNode *x, *y;
-    if (z->left == &rel_sentinel || z->right == &rel_sentinel)
-    {
-        y = z;
-    }
-    else
-    {
-        y = rel_treeMin(z->right);
-    }
-    if (y->left != &rel_sentinel)
-        x = y->left;
-    else
-        x = y->right;
-    x->parent = y->parent;
-    if (y->parent)
-    {
-        if (y == y->parent->left)
-            y->parent->left = x;
-        else
-            y->parent->right = x;
-    }
-    else
-    {
-        tree->root = x;
-    }
-    if (y != z)
-    {
-        char *temp = z->data;
-        z->data = y->data;
-        y->data = temp;
-        z->id = y->id;
-    }
-    if (y->color == 0)
-        rel_deleteFix(tree, x);
-    free(y->data);
-    free(y);
-    if (tree->root == &rel_sentinel)
-        tree->root = NULL;
 }
 
 
