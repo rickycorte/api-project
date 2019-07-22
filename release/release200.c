@@ -26,6 +26,7 @@
 #endif
 
 
+
 typedef struct s_EntityNode
 {
     char *data;
@@ -389,11 +390,6 @@ void et_count(EntityTree *tree)
 
 
 
-
-static FORCE_INLINE char *rel_allocate(char *data) { return data; }
-static FORCE_INLINE int rel_compare(char *x, char *y) { return strcmp(y, x); }
-static FORCE_INLINE void rel_deallocate(char *data) { free(data); }
-
 typedef struct s_RelationNameNode
 {
     char *data;
@@ -573,136 +569,13 @@ RelationNameNode *rel_search(RelationNameTree *tree, char *relation)
     RelationNameNode *itr = tree->root;
     while (itr && itr != &rel_sentinel)
     {
-        int cmp = rel_compare(itr->data, relation);
+        int cmp = strcmp(relation, itr->data);
         if (cmp == 0)
             break;
         else
             itr = (cmp > 0) ? itr->right : itr->left;
     }
     return itr != &rel_sentinel ? itr : NULL;
-}
-RelationNameNode *rel_treeMin(RelationNameNode *tree)
-{
-    while (tree->left != &rel_sentinel)
-        tree = tree->left;
-    return tree;
-}
-
-
-static inline void rel_deleteFix(RelationNameTree *tree, RelationNameNode *x)
-{
-    RelationNameNode *w;
-    while (x != tree->root && x->color == 0)
-    {
-        if (x == x->parent->left)
-        {
-            w = x->parent->right;
-            if (w->color == 1)
-            {
-                w->color = 0;
-                x->parent->color = 1;
-                rel_leftRotation(tree, x->parent);
-                w = x->parent->right;
-            }
-            if (w->left->color == 0 && w->right->color == 0)
-            {
-                w->color = 1;
-                x = x->parent;
-            }
-            else
-            {
-                if (w->right->color == 0)
-                {
-                    w->left->color = 0;
-                    w->color = 1;
-                    rel_rightRotation(tree, w);
-                    w = x->parent->right;
-                }
-                w->color = x->parent->color;
-                x->parent->color = 0;
-                w->right->color = 0;
-                rel_leftRotation(tree, x->parent);
-                x = tree->root;
-            }
-        }
-        else
-        {
-            w = x->parent->left;
-            if (w->color == 1)
-            {
-                w->color = 0;
-                x->parent->color = 1;
-                rel_rightRotation(tree, x->parent);
-                w = x->parent->left;
-            }
-            if (w->right->color == 0 && w->left->color == 0)
-            {
-                w->color = 1;
-                x = x->parent;
-            }
-            else
-            {
-                if (w->left->color == 0)
-                {
-                    w->right->color = 0;
-                    w->color = 1;
-                    rel_leftRotation(tree, w);
-                    w = x->parent->left;
-                }
-                w->color = x->parent->color;
-                x->parent->color = 0;
-                w->left->color = 0;
-                rel_rightRotation(tree, x->parent);
-                x = tree->root;
-            }
-        }
-    }
-    x->color = 0;
-}
-
-
-void rel_delete(RelationNameTree *tree, RelationNameNode *z)
-{
-    if (!z)
-        return;
-    RelationNameNode *x, *y;
-    if (z->left == &rel_sentinel || z->right == &rel_sentinel)
-    {
-        y = z;
-    }
-    else
-    {
-        y = rel_treeMin(z->right);
-    }
-    if (y->left != &rel_sentinel)
-        x = y->left;
-    else
-        x = y->right;
-    x->parent = y->parent;
-    if (y->parent)
-    {
-        if (y == y->parent->left)
-            y->parent->left = x;
-        else
-            y->parent->right = x;
-    }
-    else
-    {
-        tree->root = x;
-    }
-    if (y != z)
-    {
-        char *temp = z->data;
-        z->data = y->data;
-        y->data = temp;
-        z->id = y->id;
-    }
-    if (y->color == 0)
-        rel_deleteFix(tree, x);
-    free(y->data);
-    free(y);
-    if (tree->root == &rel_sentinel)
-        tree->root = NULL;
 }
 
 
@@ -762,13 +635,15 @@ void rel_count(RelationNameTree *tree)
 #include <stdlib.h>
 
 
-typedef struct
+typedef struct s_relationstoregedata
 {
     char *from;
     char *to;
-    char *rel;
+    RelationNameNode *rel;
+
+    struct s_relationstoregedata *prev, *next;
+
     void *tree_node;
-    int rel_id;
 } RelationStorageData;
 
 
@@ -782,20 +657,10 @@ typedef struct s_RelationStorageNode
 
 typedef struct
 {
+    RelationStorageData *last;
     RelationStorageNode *root;
 } RelationStorageTree;
 
-
-
-static inline RelationStorageData *rst_allocate(char *from, char *to, char *rel, int rel_id)
-{
-    RelationStorageData *dt = malloc(sizeof(RelationStorageData));
-    dt->from = from;
-    dt->to = to;
-    dt->rel = rel;
-    dt->rel_id = rel_id;
-    return dt;
-}
 
 static inline int rst_compare(RelationStorageData *x, char *from, char *to, char *rel)
 {
@@ -803,25 +668,26 @@ static inline int rst_compare(RelationStorageData *x, char *from, char *to, char
     if(res) return res;
     res = strcmp(to, x->to);
     if(res) return res;
-    return strcmp(rel, x->rel);
+    return strcmp(rel, x->rel->data);
     //TODO: provare a comparare gli id di relazione per risparmiare una strcmp
-}
-
-static inline void rst_deallocate(RelationStorageData *data)
-{
-    free(data);
 }
 
 
 
 static RelationStorageNode *rst_liear_stack[30];
+
+
 RelationStorageTree *rst_init()
 {
     RelationStorageTree *t = malloc(sizeof(RelationStorageTree));
     t->root = NULL;
+    t->last = NULL;
     return t;
 }
+
 static RelationStorageNode rst_sentinel = {0, 0, 0, &rst_sentinel, &rst_sentinel};
+
+
 static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y = x->right;
@@ -926,13 +792,13 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
 }
 
 
-RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, char *rel, int rel_id, int *inserted)
+RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, RelationNameNode *rel, int *inserted)
 {
     int cmp = 0;
     RelationStorageNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &rst_sentinel)
     {
-        cmp = rst_compare(itr->data, from, to, rel);
+        cmp = rst_compare(itr->data, from, to, rel->data);
         if (cmp == 0)
         {
             *inserted = 0;
@@ -942,12 +808,24 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
         itr = (cmp > 0) ? itr->right : itr->left;
     }
     RelationStorageNode *node = malloc(sizeof(RelationStorageNode));
-    node->data = rst_allocate(from, to, rel, rel_id);
+    node->data = malloc(sizeof(RelationStorageData));
+    node->data->from = from;
+    node->data->to = to;
+    node->data->rel = rel;
+    node->data->next = NULL;
+    node->data->prev = tree->last;
+
     node->data->tree_node = node;
     node->color = 1;
     node->left = &rst_sentinel;
     node->right = &rst_sentinel;
     node->parent = parent;
+
+    if(tree->last)
+        tree->last->next = node->data;
+
+    tree->last = node->data;
+
     if (parent)
     {
         if (cmp > 0)
@@ -961,6 +839,7 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     }
     rst_insertFix(tree, node);
     *inserted = 1;
+
     return node;
 }
 
@@ -1099,13 +978,24 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
         z->data = y->data;
         y->data = temp;
         z->data->tree_node = z; // assign new address of node
+
     }
     if (y->color == 0)
         rst_deleteFix(tree, x);
 
-    int res = y->data->rel_id;
+    int res = y->data->rel->id;
 
-    rst_deallocate(y->data);
+    //remove y from linked list
+    if(y->data->prev)
+        y->data->prev->next = y->data->next;
+
+    if(y->data->next)
+        y->data->next->prev = y->data->prev;
+
+    if(y->data == tree->last)
+        tree->last = y->data->prev;
+
+    free(y->data);
     free(y);
 
     if(tree->root == &rst_sentinel)
@@ -1136,37 +1026,10 @@ void rst_clean(RelationStorageTree *tree)
             rst_liear_stack[used] = p->left;
             used++;
         }
-        rst_deallocate(p->data);
+        free(p->data);
         free(p);
     }
 }
-
-
-void rst_count(RelationStorageTree *tree)
-{
-    int count = 0;
-    int used = 1;
-    rst_liear_stack[0] = tree->root;
-    RelationStorageNode *p;
-    while (used > 0)
-    {
-        p = rst_liear_stack[used - 1];
-        used--;
-        if (p->right != &rst_sentinel)
-        {
-            rst_liear_stack[used] = p->right;
-            used++;
-        }
-        if (p->left != &rst_sentinel)
-        {
-            rst_liear_stack[used] = p->left;
-            used++;
-        }
-        count++;
-    }
-    printf("Tree elements: %d\n", count);
-}
-
 
 
 typedef struct s_ReportNode
@@ -1551,88 +1414,47 @@ void rep_count(ReportTree *tree)
  * Delete relations
  ****************************************/
 
-static RelationStorageData **rm_list = NULL;
-
-
-
 static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entities, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
 {
-    static RelationStorageNode *stack[30];
 
     if(!relations->root)
         return; // no relations
 
     if(ent->relations > 0)
     {
-        stack[0] = relations->root;
-        RelationStorageNode *p;
 
-        int stack_used = 1;
+        RelationStorageData *itr = relations->last;
 
-        int alloc_sz = 100;
-        int used = 0;
-
-        if (!rm_list)
-            rm_list = malloc(100 * sizeof(RelationStorageData *));
-
-
-        while (stack_used > 0) // stack not empty
+        while(itr)
         {
-            p = stack[stack_used - 1];
-            stack_used--;
 
-            if (p->right != &rst_sentinel)
+            if(itr->to == ent->data)
             {
-                stack[stack_used] = p->right;
-                stack_used++;
+                rst_delete(relations, itr->tree_node);
             }
-            if (p->left != &rst_sentinel)
+            else if(itr->from == ent->data)
             {
-                stack[stack_used] = p->left;
-                stack_used++;
-            }
-
-            //add nodes to remove list
-            if (p->data->from == ent->data || p->data->to == ent->data)
-            {
-                used++;
-                if (used > alloc_sz)
+                ReportNode *rep = rep_search(reports[itr->rel->id], itr->to);
+                if (rep)
                 {
-                    alloc_sz += 100;
-                    rm_list = realloc(rm_list, alloc_sz * sizeof(RelationStorageData *));
-                }
-
-                rm_list[used - 1] = p->data;
-
-
-                if (p->data->from == ent->data)
-                {
-                    ReportNode *rep = rep_search(reports[p->data->rel_id], p->data->to);
-                    if (rep)
+                    //uncache only on max change
+                    if(rep->count == reports[itr->rel->id]->max)
                     {
-                        //uncache only on max change
-                        if(rep->count == reports[p->data->rel_id]->max)
-                        {
-                            reports[p->data->rel_id]->modified = 1;
-                        }
-
-                        rep->count--;
+                        reports[itr->rel->id]->modified = 1;
                     }
 
-                    EntityNode *dest = et_search(entities, p->data->to);
-                    dest->relations--;
-
+                    rep->count--;
                 }
 
+                EntityNode *dest = et_search(entities, itr->to);
+                dest->relations--;
+
+                rst_delete(relations, itr->tree_node);
             }
 
+            itr = itr->prev;
         }
 
-        //delete relations
-        for (int i = 0; i < used; i++)
-        {
-            rst_delete(relations, rm_list[i]->tree_node);
-        }
     }
 
     //delete all reports
@@ -1933,7 +1755,7 @@ int main(int argc, char** argv)
                         RelationNameNode *rel =  rel_insert(relationNames, command[2], &res);
 
                         int r2 = 0;
-                        rst_insert(relations, source->data, dest->data, rel->data, rel->id, &r2);
+                        rst_insert(relations, source->data, dest->data, rel, &r2);
 
 
                         if(r2)
@@ -2068,10 +1890,7 @@ int main(int argc, char** argv)
             free(gb_report_cache[i]);
     }
 
-
-    if(rm_list)
-        free(rm_list);
-
+    
     #ifdef DEBUG
     if(fl) fclose(fl);
 

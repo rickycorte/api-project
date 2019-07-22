@@ -1,0 +1,106 @@
+desc: (none)
+cmd: bin/cetrioli
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=155147
+mem_heap_B=8
+mem_heap_extra_B=16
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=155193
+mem_heap_B=24
+mem_heap_extra_B=24
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=155241
+mem_heap_B=32
+mem_heap_extra_B=40
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=157714
+mem_heap_B=1056
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=158849
+mem_heap_B=1608
+mem_heap_extra_B=64
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=159269
+mem_heap_B=1608
+mem_heap_extra_B=64
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1608 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n0: 1024 0x40475B: main (main.c:352)
+ n1: 552 0x48C844E: __fopen_internal (iofopen.c:65)
+  n0: 552 0x404778: main (main.c:358)
+ n0: 16 in 2 places, all below massif's threshold (1.00%)
+ n1: 16 0x401DEA: rel_init (relation_name_tree.c:20)
+  n0: 16 0x4046F8: main (main.c:341)
+#-----------
+snapshot=7
+#-----------
+time=159269
+mem_heap_B=1056
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=160622
+mem_heap_B=2080
+mem_heap_extra_B=56
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=162400
+mem_heap_B=2080
+mem_heap_extra_B=56
+mem_stacks_B=0
+heap_tree=peak
+n3: 2080 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n0: 1024 0x40475B: main (main.c:352)
+ n1: 1024 0x48C7A23: _IO_file_doallocate (filedoalloc.c:101)
+  n1: 1024 0x48D604F: _IO_doallocbuf (genops.c:347)
+   n1: 1024 0x48D50CB: _IO_file_underflow@@GLIBC_2.2.5 (fileops.c:493)
+    n1: 1024 0x48C91E7: getdelim (iogetdelim.c:73)
+     n0: 1024 0x4047B6: main (main.c:371)
+ n0: 32 in 4 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=10
+#-----------
+time=162400
+mem_heap_B=1056
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty

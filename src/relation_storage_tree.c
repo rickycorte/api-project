@@ -1,11 +1,14 @@
 #include <stdlib.h>
 
 
-typedef struct
+typedef struct s_relationstoregedata
 {
     char *from;
     char *to;
     RelationNameNode *rel;
+
+    struct s_relationstoregedata *prev, *next;
+
     void *tree_node;
 } RelationStorageData;
 
@@ -20,6 +23,7 @@ typedef struct s_RelationStorageNode
 
 typedef struct
 {
+    RelationStorageData *last;
     RelationStorageNode *root;
 } RelationStorageTree;
 
@@ -34,21 +38,22 @@ static inline int rst_compare(RelationStorageData *x, char *from, char *to, char
     //TODO: provare a comparare gli id di relazione per risparmiare una strcmp
 }
 
-static inline void rst_deallocate(RelationStorageData *data)
-{
-    free(data);
-}
-
 
 
 static RelationStorageNode *rst_liear_stack[30];
+
+
 RelationStorageTree *rst_init()
 {
     RelationStorageTree *t = malloc(sizeof(RelationStorageTree));
     t->root = NULL;
+    t->last = NULL;
     return t;
 }
+
 static RelationStorageNode rst_sentinel = {0, 0, 0, &rst_sentinel, &rst_sentinel};
+
+
 static inline void rst_leftRotation(RelationStorageTree *tree, RelationStorageNode *x)
 {
     RelationStorageNode *y = x->right;
@@ -173,12 +178,20 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     node->data->from = from;
     node->data->to = to;
     node->data->rel = rel;
+    node->data->next = NULL;
+    node->data->prev = tree->last;
 
     node->data->tree_node = node;
     node->color = 1;
     node->left = &rst_sentinel;
     node->right = &rst_sentinel;
     node->parent = parent;
+
+    if(tree->last)
+        tree->last->next = node->data;
+
+    tree->last = node->data;
+
     if (parent)
     {
         if (cmp > 0)
@@ -192,6 +205,7 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     }
     rst_insertFix(tree, node);
     *inserted = 1;
+
     return node;
 }
 
@@ -330,11 +344,22 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
         z->data = y->data;
         y->data = temp;
         z->data->tree_node = z; // assign new address of node
+
     }
     if (y->color == 0)
         rst_deleteFix(tree, x);
 
     int res = y->data->rel->id;
+
+    //remove y from linked list
+    if(y->data->prev)
+        y->data->prev->next = y->data->next;
+
+    if(y->data->next)
+        y->data->next->prev = y->data->prev;
+
+    if(y->data == tree->last)
+        tree->last = y->data->prev;
 
     free(y->data);
     free(y);

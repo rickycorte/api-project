@@ -37,89 +37,47 @@
  * Delete relations
  ****************************************/
 
-static RelationStorageData **rm_list = NULL;
-int alloc_sz = 100;
-
-
-
 static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entities, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
 {
-    static RelationStorageNode *stack[30];
 
     if(!relations->root)
         return; // no relations
 
     if(ent->relations > 0)
     {
-        stack[0] = relations->root;
-        RelationStorageNode *p;
 
-        int stack_used = 1;
+        RelationStorageData *itr = relations->last;
 
-
-        int used = 0;
-
-        if (!rm_list)
-            rm_list = malloc(100 * sizeof(RelationStorageData *));
-
-
-        while (stack_used > 0) // stack not empty
+        while(itr)
         {
-            p = stack[stack_used - 1];
-            stack_used--;
 
-            if (p->right != &rst_sentinel)
+            if(itr->to == ent->data)
             {
-                stack[stack_used] = p->right;
-                stack_used++;
+                rst_delete(relations, itr->tree_node);
             }
-            if (p->left != &rst_sentinel)
+            else if(itr->from == ent->data)
             {
-                stack[stack_used] = p->left;
-                stack_used++;
-            }
-
-            //add nodes to remove list
-            if (p->data->from == ent->data || p->data->to == ent->data)
-            {
-                used++;
-                if (used > alloc_sz)
+                ReportNode *rep = rep_search(reports[itr->rel->id], itr->to);
+                if (rep)
                 {
-                    alloc_sz += 100;
-                    rm_list = realloc(rm_list, alloc_sz * sizeof(RelationStorageData *));
-                }
-
-                rm_list[used - 1] = p->data;
-
-
-                if (p->data->from == ent->data)
-                {
-                    ReportNode *rep = rep_search(reports[p->data->rel->id], p->data->to);
-                    if (rep)
+                    //uncache only on max change
+                    if(rep->count == reports[itr->rel->id]->max)
                     {
-                        //uncache only on max change
-                        if(rep->count == reports[p->data->rel->id]->max)
-                        {
-                            reports[p->data->rel->id]->modified = 1;
-                        }
-
-                        rep->count--;
+                        reports[itr->rel->id]->modified = 1;
                     }
 
-                    EntityNode *dest = et_search(entities, p->data->to);
-                    dest->relations--;
-
+                    rep->count--;
                 }
 
+                EntityNode *dest = et_search(entities, itr->to);
+                dest->relations--;
+
+                rst_delete(relations, itr->tree_node);
             }
 
+            itr = itr->prev;
         }
 
-        //delete relations
-        for (int i = 0; i < used; i++)
-        {
-            rst_delete(relations, rm_list[i]->tree_node);
-        }
     }
 
     //delete all reports
@@ -555,15 +513,8 @@ int main(int argc, char** argv)
             free(gb_report_cache[i]);
     }
 
-
-
-    if(rm_list)
-        free(rm_list);
-
+    
     #ifdef DEBUG
-
-    DEBUG_PRINT("RM size: %d", alloc_sz);
-
     if(fl) fclose(fl);
 
     double msTm = (ns() - start_tm)/1000000;
