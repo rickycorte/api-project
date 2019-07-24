@@ -14,7 +14,7 @@ endif(NOT CMAKE_BUILD_TYPE)
 include_directories(src)
 
 add_executable(cetrioli
-    src/main.c
+    src/main2.c
         src/rbtree_template.h)
 
 set(
