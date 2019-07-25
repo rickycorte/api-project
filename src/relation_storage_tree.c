@@ -3,8 +3,8 @@
 
 typedef struct s_relationstoregedata
 {
-    char *from;
-    char *to;
+    EntityData *from;
+    EntityData *to;
     RelationNameNode *rel;
 
     struct s_relationstoregedata *prev, *next;
@@ -30,12 +30,13 @@ typedef struct
 
 static inline int rst_compare(RelationStorageData *x, char *from, char *to, char *rel)
 {
-    int res = strcmp(from, x->from);
+    int res = strcmp(from, x->from->name);
     if(res) return res;
-    res = strcmp(to, x->to);
+
+    res = strcmp(to, x->to->name);
     if(res) return res;
+
     return strcmp(rel, x->rel->data);
-    //TODO: provare a comparare gli id di relazione per risparmiare una strcmp
 }
 
 
@@ -158,21 +159,22 @@ static inline void rst_insertFix(RelationStorageTree *tree, RelationStorageNode 
 }
 
 
-RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to, RelationNameNode *rel, int *inserted)
+RelationStorageNode *rst_insert(RelationStorageTree *tree, EntityData *from, EntityData *to, RelationNameNode *rel, int *inserted)
 {
     int cmp = 0;
     RelationStorageNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &rst_sentinel)
     {
-        cmp = rst_compare(itr->data, from, to, rel->data);
+        cmp = rst_compare(itr->data, from->name, to->name, rel->data);
         if (cmp == 0)
         {
-            *inserted = 0;
+            if(inserted) *inserted = 0;
             return itr;
         }
         parent = itr;
         itr = (cmp > 0) ? itr->right : itr->left;
     }
+
     RelationStorageNode *node = malloc(sizeof(RelationStorageNode));
     node->data = malloc(sizeof(RelationStorageData));
     node->data->from = from;
@@ -187,10 +189,16 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
     node->right = &rst_sentinel;
     node->parent = parent;
 
+    //update from rel count
+    to->incoming_rel_count[rel->id]++;
+
     if(tree->last)
         tree->last->next = node->data;
 
     tree->last = node->data;
+
+    from->relations++;
+    to->relations++;
 
     if (parent)
     {
@@ -204,7 +212,8 @@ RelationStorageNode *rst_insert(RelationStorageTree *tree, char *from, char *to,
         tree->root = node;
     }
     rst_insertFix(tree, node);
-    *inserted = 1;
+
+    if(inserted) *inserted = 1;
 
     return node;
 }
@@ -223,6 +232,8 @@ RelationStorageNode *rst_search(RelationStorageTree *tree, char *from, char *to,
     }
     return itr != &rst_sentinel ? itr : NULL;
 }
+
+
 RelationStorageNode *rst_treeMin(RelationStorageNode *tree)
 {
     while (tree->left != &rst_sentinel)
@@ -313,6 +324,14 @@ int rst_delete(RelationStorageTree *tree, RelationStorageNode *z)
 {
     if (!z)
         return -1;
+
+    //update number of relations
+    z->data->to->incoming_rel_count[z->data->rel->id]--;
+    z->data->from->relations--;
+    z->data->to->relations--;
+
+    //delete
+
     RelationStorageNode *x, *y;
     if (z->left == &rst_sentinel || z->right == &rst_sentinel)
     {
@@ -392,6 +411,7 @@ void rst_clean(RelationStorageTree *tree)
             rst_liear_stack[used] = p->left;
             used++;
         }
+
         free(p->data);
         free(p);
     }

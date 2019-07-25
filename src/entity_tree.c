@@ -1,8 +1,16 @@
 
+typedef struct
+{
+    char *name;
+    unsigned short incoming_rel_count[SUPPORTED_RELATIONS];
+    unsigned short relations; //cache var that count in/out relation count (speed up delete)
+
+} EntityData;
+
+
 typedef struct s_EntityNode
 {
-    char *data;
-    int relations;
+    EntityData *data;
     char color;
     struct s_EntityNode *parent, *right, *left;
 } EntityNode;
@@ -136,7 +144,7 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     EntityNode *parent = NULL, *itr = tree->root;
     while (itr && itr != &et_sentinel)
     {
-        cmp = strcmp(entity, itr->data);
+        cmp = strcmp(entity, itr->data->name);
         if (cmp == 0)
         {
             *inserted = 0;
@@ -146,12 +154,16 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
         itr = (cmp > 0) ? itr->right : itr->left;
     }
     EntityNode *node = malloc(sizeof(EntityNode));
-    node->data = entity;
+
+    node->data = malloc(sizeof(EntityData));
+    memset(node->data, 0, sizeof(EntityData));
+    node->data->name = entity;
+
     node->color = 1;
     node->left = &et_sentinel;
     node->right = &et_sentinel;
     node->parent = parent;
-    node->relations = 0;
+
     if (parent)
     {
         if (cmp > 0)
@@ -163,7 +175,9 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     {
         tree->root = node;
     }
+
     et_insertFix(tree, node);
+
     *inserted = 1;
     return node;
 }
@@ -175,7 +189,7 @@ EntityNode *et_search(EntityTree *tree, char *entity)
 
     while (itr && itr != &et_sentinel)
     {
-        int cmp = strcmp(entity, itr->data);
+        int cmp = strcmp(entity, itr->data->name);
         if (cmp == 0)
             break;
         else
@@ -183,6 +197,8 @@ EntityNode *et_search(EntityTree *tree, char *entity)
     }
     return itr != &et_sentinel ? itr : NULL;
 }
+
+
 EntityNode *et_treeMin(EntityNode *tree)
 {
     while (tree->left != &et_sentinel)
@@ -294,15 +310,17 @@ void et_delete(EntityTree *tree, EntityNode *z)
     }
     if (y != z)
     {
-        char *temp = z->data;
+        EntityData *temp = z->data;
         z->data = y->data;
         y->data = temp;
-        z->relations = y->relations;
     }
     if (y->color == 0)
         et_deleteFix(tree, x);
+
+    free(y->data->name);
     free(y->data);
     free(y);
+
     if (tree->root == &et_sentinel)
         tree->root = NULL;
 }
@@ -329,6 +347,8 @@ void et_clean(EntityTree *tree)
             et_liear_stack[used] = p->left;
             used++;
         }
+
+        free(p->data->name);
         free(p->data);
         free(p);
     }

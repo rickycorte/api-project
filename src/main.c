@@ -5,9 +5,14 @@
 #define DEBUG
 
 #define INPUT_BUFFER_SIZE 1024
-#define REPORT_OUT_QUEUE_SIZE 512
-#define REPORT_TREES 35
+#define REPORT_ELEMENTS_SIZE 512
 #define REPORT_BUFFER_SIZE 512
+
+#ifdef DEBUG
+    #define SUPPORTED_RELATIONS 32
+#else
+    #define SUPPORTED_RELATIONS 5
+#endif
 
 #ifdef DEBUG
     #define DEBUG_PRINT printf
@@ -27,73 +32,136 @@
 #endif
 
 
+#define STACK_SIZE 25
+
+/* MAIN ONLY MACROS */
+
+#define GRAB_CMD_0                                                                  \
+command[0] = malloc(rsz-7);                                                         \
+memcpy(command[0], (buffer + 7), rsz-8);                                            \
+command[0][rsz-8] = '\0';
+
+
+#define GRAB_CMD_0_1_2                                                              \
+int spaces = 0;                                                                     \
+int last_space = 6;                                                                 \
+for(int i = 7; i < rsz && spaces < 2; i++)                                          \
+{                                                                                   \
+    if(buffer[i] == ' ')                                                            \
+    {                                                                               \
+        command[spaces] =  malloc(i-last_space);                                    \
+        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );       \
+        command[spaces][i-last_space-1] = '\0';                                     \
+        last_space = i;                                                             \
+        spaces++;                                                                   \
+    }                                                                               \
+}                                                                                   \
+command[2] =  malloc(rsz - last_space-1);                                           \
+memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);                      \
+command[2][rsz-last_space-2] = '\0';
+
+/* END MAIN ONLY MACROS END */
+
 
 #include "entity_tree.c"
 #include "relation_name_tree.c"
 #include "relation_storage_tree.c"
-#include "report_tree.c"
+
+/****************************************
+ * REPORT CACHE
+ ****************************************/
+
+typedef struct
+{
+    char status;                                       // 0 = use cache_str, 1 = elements items changed, 2 = max is not valid, 3 = empty
+    unsigned short max;                                     // last max found
+    unsigned short last_element;                            // last unused index
+    EntityData *elements[REPORT_ELEMENTS_SIZE];             // elements w/ relations == max
+
+    char *cache_str;                                        // cache string calculated in prev reports
+    unsigned int cache_sz;                                  // cache string len
+    unsigned int cache_allocated;                           // cache string allocated size
+
+} ReportCacheBlock;
+
+
+static ReportCacheBlock reportCache[SUPPORTED_RELATIONS] = {0};
+
+
+static inline void add_to_cache(EntityData *ent, int relID)
+{
+    ReportCacheBlock *rcp = &reportCache[relID];
+
+    if(ent->incoming_rel_count[relID] > rcp->max) // can still recover from a cache clear
+    {
+        rcp->max = ent->incoming_rel_count[relID];
+        rcp->elements[0] = ent;
+        rcp->last_element = 1;
+        rcp->status = 1;
+    }
+    else if(rcp->status != 2 && ent->incoming_rel_count[relID] == rcp->max)
+    {
+        rcp->elements[rcp->last_element] = ent;
+        rcp->last_element++;
+        rcp->status = 1;
+    }
+}
+
+
+static inline void remove_from_cache(RelationStorageData *dl_rel)
+{
+
+    int relID = dl_rel->rel->id;
+
+    //clear cache if a max could be changed :L
+    if(dl_rel->to->incoming_rel_count[relID] == reportCache[relID].max)
+    {
+        reportCache[relID].status = 2;
+        reportCache[relID].last_element = 0;
+    }
+
+}
+
 
 /****************************************
  * Delete relations
  ****************************************/
 
-static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entities, RelationStorageTree *relations, ReportTree *reports[], int rep_count)
+static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree *relations)
 {
 
     if(!relations->root)
-        return; // no relations
+        return; // no relations at all
 
-    if(ent->relations > 0)
+    if(ent->data->relations > 0)
     {
 
-        RelationStorageData *itr = relations->last;
+        RelationStorageData *del = NULL, *itr = relations->last;
 
         while(itr)
         {
 
-            if(itr->to == ent->data)
+            //check for delete + update cache
+            if(itr->from == ent->data || itr->to == ent->data)
             {
-                rst_delete(relations, itr->tree_node);
+                del = itr;
+                //TODO: update cache
+                remove_from_cache(del);
             }
-            else if(itr->from == ent->data)
-            {
-                ReportNode *rep = rep_search(reports[itr->rel->id], itr->to);
-                if (rep)
-                {
-                    //uncache only on max change
-                    if(rep->count == reports[itr->rel->id]->max)
-                    {
-                        reports[itr->rel->id]->modified = 1;
-                    }
 
-                    rep->count--;
-                }
-
-                EntityNode *dest = et_search(entities, itr->to);
-                dest->relations--;
-
-                rst_delete(relations, itr->tree_node);
-            }
 
             itr = itr->prev;
+
+            //delete relation
+            if(del)
+            {
+                rst_delete(relations, del->tree_node);
+                del = NULL;
+            }
+
         }
 
     }
-
-    //delete all reports
-    for(int i = 0; i < rep_count; i++)
-    {
-        ReportNode *rep = rep_search(reports[i], ent->data);
-        rep_delete(reports[i], rep);
-
-        //uncache only on max change
-        if(rep && rep->count == reports[i]->max)
-        {
-            reports[i]->modified = 1;
-        }
-
-    }
-
 
 }
 
@@ -102,178 +170,224 @@ static inline void remove_all_relations_for(EntityNode *ent, EntityTree *entitie
  * Report
  ****************************************/
 
-static char *gb_report_cache[REPORT_TREES] = {0};
 
-
-
-static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
+static inline int quick_partition(EntityData **arr, int start, int end)
 {
-    static int allocated[REPORT_TREES];
-    static int last_used[REPORT_TREES];
+    EntityData *x = arr[end];
+    int i = start - 1;
 
-    int out_last = 0;
-
-    if(tree->modified)
+    for(int j = start; j < end; j++)
     {
-
-        static ReportNode *out[REPORT_OUT_QUEUE_SIZE];
-        int max = 1;
-        int used = 0;
-
-        static ReportNode *stack[20];
-        ReportNode *curr = tree->root;
-
-        if (curr)
+        if(strcmp(arr[j]->name, x->name) <= 0)
         {
-
-            while (curr != &rep_sentinel || used > 0)
-            {
-                while (curr != &rep_sentinel)
-                {
-                    stack[used] = curr;
-                    used++;
-                    curr = curr->left;
-                }
-
-                curr = stack[used - 1];
-                used--;
-
-                //do shit
-                //reset on greater
-                if (curr->count > max)
-                {
-                    out[0] = curr;
-                    max = curr->count;
-                    out_last = 1;
-                } else if (curr->count == max) // append on equal
-                {
-                    out[out_last] = curr;
-                    out_last++;
-                }
-
-                curr = curr->right;
-
-            }
-
-            tree->max = max;
-
+            i += 1;
+            EntityData *t = arr[i];
+            arr[i] = arr[j];
+            arr[j] = t;
         }
-
-        #define GRCP gb_report_cache[rel_id]
-        #define AP allocated[rel_id]
-        #define LU last_used[rel_id]
-
-        if(!GRCP)
-        {
-            GRCP = malloc(REPORT_BUFFER_SIZE);
-            AP = REPORT_BUFFER_SIZE;
-        }
-
-        last_used[rel_id] = 0;
-
-        if (out_last > 0)
-        {
-            int len = strlen(rel);
-
-            if(LU + len > AP)
-            {
-                AP += REPORT_BUFFER_SIZE;
-                GRCP = realloc(GRCP, AP);
-            }
-
-            memcpy(GRCP + LU, rel, len);
-            LU += len;
-
-            //printf("%s", rel);
-
-            for (int i = 0; i < out_last; i++)
-            {
-                len = strlen(out[i]->data); // can optimize
-
-                if(LU + len + 1> AP)
-                {
-                    AP += REPORT_BUFFER_SIZE;
-                    GRCP = realloc(GRCP, AP);
-                }
-
-                GRCP[LU] = ' ';
-                memcpy(GRCP + 1 + LU, out[i]->data, len);
-                LU += len + 1;
-
-                //printf(" %s", out[i]->data);
-
-            }
-
-            if(LU + 9 > AP)
-            {
-                AP += REPORT_BUFFER_SIZE;
-                GRCP = realloc(GRCP, AP);
-            }
-            LU += sprintf(GRCP + LU, " %d;", max);
-            //printf(" %d;", max);
-
-            if(AP - LU > 50) // reallocate to not waste ram
-            {
-                GRCP = realloc(GRCP, LU + 1);
-                AP = LU + 1;
-            }
-        }
-
-    }
-    else
-    {
-        out_last = LU;
     }
 
-    if(LU > 0)
+    EntityData *t = arr[i+1];
+    arr[i+1] = arr[end];
+    arr[end] = t;
+
+    return i + 1;
+}
+
+static inline void quick_sort_internal(EntityData **arr, int start, int end)
+{
+    if(start < end)
     {
-        if(space)
-            fwrite(" ", 1, 1, stdout);
-
-        fwrite(GRCP, 1, LU, stdout);
-
-        //printf( space ? " %s" : "%s" , GRCP);
+        int q = quick_partition(arr, start, end);
+        quick_sort_internal(arr, start, q-1);
+        quick_sort_internal(arr, q+1, end);
     }
-
-    #undef GRCP
-    #undef AP
-    #undef LU
-
-    tree->modified = 0;
-
-    return out_last;
 }
 
 
-static inline void report(RelationNameTree *relNames, ReportTree *reports[])
-{
-    int used = 0;
-    static RelationNameNode *stack[6];
-    RelationNameNode *curr = relNames->root;
 
-    int print = 0;
+static inline void sort_cache(int relID)
+{
+    quick_sort_internal(reportCache[relID].elements, 0, reportCache[relID].last_element - 1);
+}
+
+
+static inline void recalculate_max_for_rel(EntityTree *entities, int relID)
+{
+    ReportCacheBlock *rcp = &reportCache[relID];
+
+    EntityNode *curr = entities->root;
+    static EntityNode *stack[STACK_SIZE];
+    char used = 0;
+
+    rcp->max = 1;
+    rcp->last_element = 0;
+    rcp->status = 1;
+
+    //TODO: posso mettere un controllo sul numero di relazioni perdendo un intero per relazione + una somma x aggiunta/rimozione rel
 
     if(curr)
     {
-
-        while(curr != &rel_sentinel || used > 0)
+        while (curr != &et_sentinel || used > 0)
         {
-            while(curr != &rel_sentinel)
+            while (curr != &et_sentinel)
             {
                 stack[used] = curr;
                 used++;
                 curr = curr->left;
             }
 
-            curr = stack[used-1];
-            used--;
+            curr = stack[--used];
 
-            //do shit
-            if(reports[curr->id] && reports[curr->id]->root)
+            //operation
+            if(curr->data->incoming_rel_count[relID] > rcp->max)
             {
-                int res = print_rep(curr->data, curr->id, reports[curr->id], print);
+                rcp->elements[0] = curr->data;
+                rcp->last_element = 1;
+                rcp->max = curr->data->incoming_rel_count[relID];
+            }
+            else if (curr->data->incoming_rel_count[relID] == rcp->max)
+            {
+                rcp->elements[rcp->last_element] = curr->data;
+                rcp->last_element++;
+            }
 
-                if(res > 0) print = 1;
+
+            curr = curr->right;
+        }
+    }
+
+}
+
+
+static inline int write_rep_block(char *out_buff, int max, char print)
+{
+    if(out_buff)
+    {
+        if(print)
+            fputs(" ",stdout);
+
+        fputs(out_buff, stdout);
+
+        printf(" %d;", max); // split max so we can skip cache recalculation
+
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * Create report string (require ordered elements!)
+ * @param rel_name
+ * @param relID
+ */
+static inline void calculate_str_cache(char *rel_name, int relID)
+{
+    ReportCacheBlock *rcp = &reportCache[relID];
+
+    if(rcp->cache_allocated <= 0)
+    {
+        rcp->cache_allocated += REPORT_BUFFER_SIZE;
+        rcp->cache_str = malloc( rcp->cache_allocated);
+    }
+
+    rcp->cache_sz = 0;
+
+    if(rcp->max < 1 || rcp->last_element  < 1)
+    {
+        rcp->status = 3;
+        rcp->last_element = 0;
+        rcp->max = 0;
+        return;
+    }
+
+
+    int len = strlen(rel_name);
+
+    memcpy(rcp->cache_str, rel_name, len);
+    rcp->cache_sz += len;
+
+    for(int i = 0; i < rcp->last_element; i++)
+    {
+        len = strlen(rcp->elements[i]->name) + 1; // add space
+
+        if(rcp->cache_sz + len> rcp->cache_allocated)
+        {
+            rcp->cache_allocated += REPORT_BUFFER_SIZE;
+            rcp->cache_str = realloc(rcp->cache_str, rcp->cache_allocated);
+        }
+
+        rcp->cache_str[rcp->cache_sz] = ' ';
+        memcpy(rcp->cache_str + rcp->cache_sz +1, rcp->elements[i]->name, len -1);
+
+        rcp->cache_sz += len;
+    }
+
+    rcp->cache_str[rcp->cache_sz++] = '\0';
+
+    // split max so we can skip cache recalculation if only max of best rel changes
+    //rcp->cache_sz += sprintf(rcp->cache_str + rcp->cache_sz, " %d;", rcp->max);
+
+    rcp->status = 0;
+}
+
+
+void report(EntityTree *entities, RelationNameTree *relTypes)
+{
+
+    static int cnt = 0;
+    cnt++;
+
+    RelationNameNode *curr = relTypes->root;
+    static RelationNameNode *stack[STACK_SIZE];
+    char used = 0;
+
+    char print = 0;
+
+    if(curr)
+    {
+        while (curr != &rel_sentinel || used > 0)
+        {
+            while (curr != &rel_sentinel)
+            {
+                stack[used] = curr;
+                used++;
+                curr = curr->left;
+            }
+
+            curr = stack[--used];
+
+            //operation
+            ReportCacheBlock *rcp = &reportCache[curr->id];
+
+            switch(rcp->status)
+            {
+                case 0:
+                    //just print (done at switch end)
+                    break;
+
+                case 1:
+                    if(rcp->last_element > 1)
+                    {
+                        sort_cache(curr->id);
+                    }
+                    calculate_str_cache(curr->data, curr->id);
+                    rcp->status = 0;
+                    break;
+
+                case 2:
+                    recalculate_max_for_rel(entities, curr->id);
+                    calculate_str_cache(curr->data, curr->id);
+                    break;
+                case 3:
+                    //nothing to do here
+                    break;
+            }
+
+            if(rcp->status == 0)
+            {
+                print += write_rep_block(rcp->cache_str, rcp->max, print);
             }
 
             curr = curr->right;
@@ -281,10 +395,9 @@ static inline void report(RelationNameTree *relNames, ReportTree *reports[])
     }
 
     if(!print)
-        fwrite("none\n", 1, 5, stdout);
+        fputs("none\n", stdout);
     else
-        fwrite("\n", 1, 1, stdout);
-
+        fputs("\n", stdout);
 }
 
 
@@ -299,10 +412,10 @@ int main(int argc, char** argv)
     RelationNameTree *relationNames = rel_init();
     RelationStorageTree *relations = rst_init();
 
-    ReportTree *reports[REPORT_TREES] = {0};
-
     #ifdef DEBUG
     double start_tm = ns();
+
+    static int LINE = 0;
     #endif
 
     //init
@@ -324,7 +437,8 @@ int main(int argc, char** argv)
      */
 
     do
-    {   
+    {
+        LINE++;
         size_t max_sz = INPUT_BUFFER_SIZE;
         size_t rsz = getline(&buffer, &max_sz, fl);
 
@@ -333,12 +447,12 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //addent <ent>
-                command[0] = malloc(rsz-7);
-                memcpy(command[0], (buffer + 7), rsz-8);
-                command[0][rsz-8] = '\0';
+                GRAB_CMD_0
 
                 int res;
+
                 et_insert(entities, command[0], &res);
+
                 if(!res)
                 {
                     free(command[0]);
@@ -349,22 +463,7 @@ int main(int argc, char** argv)
             {
                 //addrel <from> <to> <rel>
 
-                int spaces = 0;
-                int last_space = 6; //position of the first space
-                for(int i = 7; i < rsz && spaces < 2; i++)
-                {
-                    if(buffer[i] == ' ')
-                    {
-                        command[spaces] =  malloc(i-last_space);
-                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces][i-last_space-1] = '\0';
-                        last_space = i;
-                        spaces++;
-                    }
-                }
-                command[2] =  malloc(rsz - last_space-1);
-                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
-                command[2][rsz-last_space-2] = '\0';
+                GRAB_CMD_0_1_2
 
                 // do insertion if possibile
                 int res = 0;
@@ -380,19 +479,10 @@ int main(int argc, char** argv)
                         int r2 = 0;
                         rst_insert(relations, source->data, dest->data, rel, &r2);
 
-
+                        //TODO: update maximum cache
                         if(r2)
-                        {
-                            source->relations++;
-                            dest->relations++;
+                            add_to_cache(dest->data, rel->id);
 
-                            if (!reports[rel->id])
-                            {
-                                reports[rel->id] = rep_init();
-                            }
-
-                            rep_insert(reports[rel->id], dest->data, &r2);
-                        }
                     }
                 }
 
@@ -408,16 +498,15 @@ int main(int argc, char** argv)
             if(buffer[3] == 'e')
             {
                 //delent <ent>
-                command[0] = malloc(rsz-7);
-                memcpy(command[0], (buffer + 7), rsz-8);
-                command[0][rsz-8] = '\0';
+                GRAB_CMD_0
 
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
                 {
-                    remove_all_relations_for(res, entities, relations, reports, relationNames->count);
+                    remove_all_relations_for(res, relations);
                     et_delete(entities, res);
                 }
+
                 free(command[0]);
                 
 
@@ -425,49 +514,15 @@ int main(int argc, char** argv)
             else if(buffer[3] == 'r')
             {
                 //delrel <from> <to> <rel>
-                int spaces = 0;
-                int last_space = 6; //position of the first space
-                for(int i = 7; i < rsz && spaces < 2; i++)
-                {
-                    if(buffer[i] == ' ')
-                    {
-                        command[spaces] =  malloc(i-last_space);
-                        memcpy(command[spaces], buffer + last_space + 1, i - last_space -1 );
-                        command[spaces][i-last_space-1] = '\0';
-                        last_space = i;
-                        spaces++;
-                    }
-                }
-                command[2] =  malloc(rsz - last_space-1);
-                memcpy(command[2], (buffer + last_space+1), rsz-last_space-2);
-                command[2][rsz-last_space-2] = '\0';
+                GRAB_CMD_0_1_2
 
                 RelationStorageNode *del = rst_search(relations, command[0], command[1], command[2]);
                 if(del)
                 {
-                    int rel_id = rst_delete(relations, del);
+                    //TODO: update maxumin cache
+                    remove_from_cache(del->data);
 
-                    EntityNode* dest =  et_search(entities, command[1]);
-                    EntityNode* source = et_search(entities, command[0]);
-
-                    source->relations--;
-                    dest->relations--;
-
-                    ReportNode *rep = rep_search(reports[rel_id], command[1]);
-                    if(rep)
-                    {
-                        //uncache only on max change
-                        if(rep->count == reports[rel_id]->max)
-                        {
-                            reports[rel_id]->modified = 1;
-                        }
-
-                        rep->count--;
-                    }
-                    else
-                    {
-                        DEBUG_PRINT("RM Error: unable to find report data for %s\n", command[1]);
-                    }
+                    rst_delete(relations, del);
                 }
 
                 free(command[0]);
@@ -479,7 +534,7 @@ int main(int argc, char** argv)
         else if(buffer[0] == 'r')
         {
             //report
-            report(relationNames, reports);
+            report(entities, relationNames);
         }
         else
         {
@@ -502,15 +557,12 @@ int main(int argc, char** argv)
     rst_clean(relations);
     free(relations);
 
-    for(int i = 0; i <REPORT_TREES; i++)
+    //ahah delete cache here :3
+
+    for(int i=0; i < SUPPORTED_RELATIONS; i++)
     {
-        if(reports[i])
-        {
-            rep_clean(reports[i]);
-            free(reports[i]);
-        }
-        if(gb_report_cache[i])
-            free(gb_report_cache[i]);
+        if(reportCache[i].cache_str)
+            free(reportCache[i].cache_str);
     }
 
     
