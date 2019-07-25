@@ -259,6 +259,37 @@ static inline void recalculate_max_for_rel(EntityTree *entities, int relID)
 
 }
 
+#define NUM_SZ 8
+
+void write_max(int num)
+{
+
+    //we know max num is below 512 :3
+
+    char b[NUM_SZ];
+    short used = 0;
+
+    while (num != 0)
+    {
+        b[NUM_SZ-used-1] = '0'+ (num % 10);
+        used++;
+        num /= 10;
+    }
+    //now we got all number at end
+
+    //move to start
+    b[0] = ' ';
+    int i;
+    for(i = 1; used > 0; used--, i++)
+    {
+        b[i] = b[NUM_SZ-used];
+    }
+    b[i] = ';';
+    b[i+1] = '\0';
+
+    fputs(b, stdout);
+}
+
 
 static inline int write_rep_block(char *out_buff, int max, char print)
 {
@@ -269,7 +300,8 @@ static inline int write_rep_block(char *out_buff, int max, char print)
 
         fputs(out_buff, stdout);
 
-        printf(" %d;", max); // split max so we can skip cache recalculation
+        //printf(" %d;", max); // split max so we can skip cache recalculation
+        write_max(max);
 
         return 1;
     }
