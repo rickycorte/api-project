@@ -8,10 +8,12 @@
 #define REPORT_ELEMENTS_SIZE 512
 #define REPORT_BUFFER_SIZE 512
 
+#define NUM_SZ 8
+
 #ifdef DEBUG
     #define SUPPORTED_RELATIONS 32
 #else
-    #define SUPPORTED_RELATIONS 5
+    #define SUPPORTED_RELATIONS 4
 #endif
 
 #ifdef DEBUG
@@ -68,8 +70,8 @@ command[2][rsz-last_space-2] = '\0';
 #include "relation_storage_tree.c"
 
 /****************************************
- * REPORT CACHE
- ****************************************/
+* REPORT CACHE
+****************************************/
 
 typedef struct
 {
@@ -101,10 +103,17 @@ static inline void add_to_cache(EntityData *ent, int relID)
     }
     else if(rcp->status != 2 && ent->incoming_rel_count[relID] == rcp->max)
     {
-        rcp->elements[rcp->last_element] = ent;
+        int i;
+        for(i = rcp->last_element - 1; i >= 0 && strcmp(rcp->elements[i]->name, ent->name) >0; i--)
+        {
+            rcp->elements[i+1] = rcp->elements[i];
+        }
+        rcp->elements[i+1] = ent;
+
         rcp->last_element++;
         rcp->status = 1;
     }
+
 }
 
 
@@ -171,47 +180,6 @@ static inline void remove_all_relations_for(EntityNode *ent, RelationStorageTree
  ****************************************/
 
 
-static inline int quick_partition(EntityData **arr, int start, int end)
-{
-    EntityData *x = arr[end];
-    int i = start - 1;
-
-    for(int j = start; j < end; j++)
-    {
-        if(strcmp(arr[j]->name, x->name) <= 0)
-        {
-            i += 1;
-            EntityData *t = arr[i];
-            arr[i] = arr[j];
-            arr[j] = t;
-        }
-    }
-
-    EntityData *t = arr[i+1];
-    arr[i+1] = arr[end];
-    arr[end] = t;
-
-    return i + 1;
-}
-
-static inline void quick_sort_internal(EntityData **arr, int start, int end)
-{
-    if(start < end)
-    {
-        int q = quick_partition(arr, start, end);
-        quick_sort_internal(arr, start, q-1);
-        quick_sort_internal(arr, q+1, end);
-    }
-}
-
-
-
-static inline void sort_cache(int relID)
-{
-    quick_sort_internal(reportCache[relID].elements, 0, reportCache[relID].last_element - 1);
-}
-
-
 static inline void recalculate_max_for_rel(EntityTree *entities, int relID)
 {
     ReportCacheBlock *rcp = &reportCache[relID];
@@ -224,7 +192,6 @@ static inline void recalculate_max_for_rel(EntityTree *entities, int relID)
     rcp->last_element = 0;
     rcp->status = 1;
 
-    //TODO: posso mettere un controllo sul numero di relazioni perdendo un intero per relazione + una somma x aggiunta/rimozione rel
 
     if(curr)
     {
@@ -259,7 +226,7 @@ static inline void recalculate_max_for_rel(EntityTree *entities, int relID)
 
 }
 
-#define NUM_SZ 8
+
 
 void write_max(int num)
 {
@@ -318,13 +285,6 @@ static inline void calculate_str_cache(char *rel_name, int relID)
 {
     ReportCacheBlock *rcp = &reportCache[relID];
 
-    if(rcp->cache_allocated <= 0)
-    {
-        rcp->cache_allocated += REPORT_BUFFER_SIZE;
-        rcp->cache_str = malloc( rcp->cache_allocated);
-    }
-
-    rcp->cache_sz = 0;
 
     if(rcp->max < 1 || rcp->last_element  < 1)
     {
@@ -333,6 +293,15 @@ static inline void calculate_str_cache(char *rel_name, int relID)
         rcp->max = 0;
         return;
     }
+
+
+    if(rcp->cache_allocated <= 0)
+    {
+        rcp->cache_allocated += REPORT_BUFFER_SIZE;
+        rcp->cache_str = malloc( rcp->cache_allocated);
+    }
+
+    rcp->cache_sz = 0;
 
 
     int len = strlen(rel_name);
@@ -358,9 +327,6 @@ static inline void calculate_str_cache(char *rel_name, int relID)
 
     rcp->cache_str[rcp->cache_sz++] = '\0';
 
-    // split max so we can skip cache recalculation if only max of best rel changes
-    //rcp->cache_sz += sprintf(rcp->cache_str + rcp->cache_sz, " %d;", rcp->max);
-
     rcp->status = 0;
 }
 
@@ -368,8 +334,10 @@ static inline void calculate_str_cache(char *rel_name, int relID)
 void report(EntityTree *entities, RelationNameTree *relTypes)
 {
 
+    #ifdef DEBUG
     static int cnt = 0;
     cnt++;
+    #endif
 
     RelationNameNode *curr = relTypes->root;
     static RelationNameNode *stack[STACK_SIZE];
@@ -395,25 +363,13 @@ void report(EntityTree *entities, RelationNameTree *relTypes)
 
             switch(rcp->status)
             {
-                case 0:
-                    //just print (done at switch end)
-                    break;
-
                 case 1:
-                    if(rcp->last_element > 1)
-                    {
-                        sort_cache(curr->id);
-                    }
                     calculate_str_cache(curr->data, curr->id);
-                    rcp->status = 0;
                     break;
 
                 case 2:
                     recalculate_max_for_rel(entities, curr->id);
                     calculate_str_cache(curr->data, curr->id);
-                    break;
-                case 3:
-                    //nothing to do here
                     break;
             }
 
@@ -463,14 +419,13 @@ int main(int argc, char** argv)
     #else
     FILE *fl = stdin;
     #endif
-    
+
     /*
      *   INPUT
      */
 
     do
     {
-        LINE++;
         size_t max_sz = INPUT_BUFFER_SIZE;
         size_t rsz = getline(&buffer, &max_sz, fl);
 
@@ -540,7 +495,7 @@ int main(int argc, char** argv)
                 }
 
                 free(command[0]);
-                
+
 
             }
             else if(buffer[3] == 'r')
@@ -570,7 +525,7 @@ int main(int argc, char** argv)
         }
         else
         {
-            //end 
+            //end
             exit_loop = 1;
         }
 
@@ -597,7 +552,7 @@ int main(int argc, char** argv)
             free(reportCache[i].cache_str);
     }
 
-    
+
     #ifdef DEBUG
     if(fl) fclose(fl);
 
