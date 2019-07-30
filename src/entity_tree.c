@@ -2,8 +2,7 @@
 typedef struct
 {
     char *name;
-    unsigned short incoming_rel_count[SUPPORTED_RELATIONS];
-    unsigned short relations; //cache var that count in/out relation count (speed up delete)
+
 
 } EntityData;
 
@@ -22,7 +21,7 @@ typedef struct
 } EntityTree;
 
 
-static EntityNode *et_liear_stack[30];
+
 
 EntityTree *et_init()
 {
@@ -329,6 +328,9 @@ void et_delete(EntityTree *tree, EntityNode *z)
 void et_clean(EntityTree *tree)
 {
     int used = 1;
+
+    EntityNode *et_liear_stack[30];
+
     et_liear_stack[0] = tree->root;
     if (!et_liear_stack[0])
         return;
@@ -354,28 +356,3 @@ void et_clean(EntityTree *tree)
     }
 }
 
-
-void et_count(EntityTree *tree)
-{
-    int count = 0;
-    int used = 1;
-    et_liear_stack[0] = tree->root;
-    EntityNode *p;
-    while (used > 0)
-    {
-        p = et_liear_stack[used - 1];
-        used--;
-        if (p->right != &et_sentinel)
-        {
-            et_liear_stack[used] = p->right;
-            used++;
-        }
-        if (p->left != &et_sentinel)
-        {
-            et_liear_stack[used] = p->left;
-            used++;
-        }
-        count++;
-    }
-    printf("Tree elements: %d\n", count);
-}
