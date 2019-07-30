@@ -1,8 +1,10 @@
 
+struct s_rcontainer;
+
 typedef struct
 {
     char *name;
-
+    struct s_rcontainer *rel_container;
 
 } EntityData;
 
@@ -157,6 +159,7 @@ EntityNode *et_insert(EntityTree *tree, char *entity, int *inserted)
     node->data = malloc(sizeof(EntityData));
     memset(node->data, 0, sizeof(EntityData));
     node->data->name = entity;
+    node->data->rel_container = NULL;
 
     node->color = 1;
     node->left = &et_sentinel;
@@ -317,6 +320,7 @@ void et_delete(EntityTree *tree, EntityNode *z)
         et_deleteFix(tree, x);
 
     free(y->data->name);
+
     free(y->data);
     free(y);
 

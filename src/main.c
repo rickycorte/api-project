@@ -65,7 +65,8 @@ command[2][rsz-last_space-2] = '\0';
 
 #include "entity_tree.c"
 #include "relation_types.c"
-
+#include "relation_holder.c"
+#include "relation_container.c"
 
 
 /****************************************
@@ -104,6 +105,10 @@ int main(int argc, char** argv)
 
     do
     {
+        #ifdef DEBUG
+        LINE++;
+        #endif
+
         size_t max_sz = INPUT_BUFFER_SIZE;
         size_t rsz = getline(&buffer, &max_sz, fl);
 
@@ -138,7 +143,9 @@ int main(int argc, char** argv)
                     EntityNode *dest = et_search(entities, command[1]);
                     if(dest)
                     {
-                        rtm_insert(rtm, command[2], &res);
+                        RelationType *rel = rtm_insert(rtm, command[2], &res);
+
+                        int o = rc_make_relation(source->data, dest->data, rel->id);
 
                     }
                 }
@@ -172,6 +179,18 @@ int main(int argc, char** argv)
             {
                 //delrel <from> <to> <rel>
                 GRAB_CMD_0_1_2
+
+                RelationType *rel = rtm_search(rtm, command[2]);
+                if(rel)
+                {
+                    EntityNode *src = et_search(entities, command[0]);
+
+                    if(src)
+                    {
+                        rc_delete_relation(src->data, command[1], rel->id);
+                    }
+
+                }
 
 
                 free(command[0]);
