@@ -43,11 +43,53 @@ int rc_delete_relation(EntityData *from, char *to, RelationID relID)
     {
         //rel exists
         rh_remove(&del->rel_container->in, from->name, relID);
+
+        return 1;
     }
 
     return 0;
 }
 
+
+/**
+ * Delete all relations for an entity (this also clears internal items)
+ * @param ent
+ */
+void rc_delete_all_for(EntityData *ent)
+{
+    //remove in rels (of current)
+    for(int i = 0; i < SUPPORTED_RELATIONS; i++)
+    {
+        EntityData **arr = ent->rel_container->in.rels[i];
+
+        for(int j =0; j < ent->rel_container->in.sizes[i]; j++)
+        {
+            rh_remove(&arr[j]->rel_container->out, ent->name, i);
+        }
+
+        if(arr)
+            free(arr);
+    }
+
+    //remove out rels
+    for(int i = 0; i < SUPPORTED_RELATIONS; i++)
+    {
+        EntityData **arr = ent->rel_container->out.rels[i];
+
+        for(int j =0; j < ent->rel_container->out.sizes[i]; j++)
+        {
+            rh_remove(&arr[j]->rel_container->in, ent->name, i);
+        }
+
+        if(arr)
+            free(arr);
+    }
+
+    free(ent->rel_container);
+    ent->rel_container = NULL;
+
+    //skip remove of current object items to speed up things :#
+}
 
 
 void rc_clean(EntityData *ent)

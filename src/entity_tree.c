@@ -281,6 +281,8 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
 }
 
 
+void rc_clean(EntityData *ent); // fwd def
+
 void et_delete(EntityTree *tree, EntityNode *z)
 {
     if (!z)
@@ -321,6 +323,9 @@ void et_delete(EntityTree *tree, EntityNode *z)
 
     free(y->data->name);
 
+    if(y->data->rel_container)
+        rc_clean(y->data);
+
     free(y->data);
     free(y);
 
@@ -353,6 +358,9 @@ void et_clean(EntityTree *tree)
             et_liear_stack[used] = p->left;
             used++;
         }
+
+        if(p->data->rel_container)
+            rc_clean(p->data);
 
         free(p->data->name);
         free(p->data);

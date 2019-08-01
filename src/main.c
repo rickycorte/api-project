@@ -167,7 +167,7 @@ int main(int argc, char** argv)
                 EntityNode *res = et_search(entities, command[0]);
                 if(res)
                 {
-
+                    rc_delete_all_for(res->data);
                     et_delete(entities, res);
                 }
 
