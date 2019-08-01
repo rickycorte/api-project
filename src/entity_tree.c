@@ -283,6 +283,7 @@ static inline void et_deleteFix(EntityTree *tree, EntityNode *x)
 
 void rc_clean(EntityData *ent); // fwd def
 
+
 void et_delete(EntityTree *tree, EntityNode *z)
 {
     if (!z)

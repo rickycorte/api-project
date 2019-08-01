@@ -32,7 +32,6 @@ RelationTypeManager *rtm_init()
 {
     RelationTypeManager *rtm = malloc(sizeof(RelationTypeManager));
     memset(rtm, 0, sizeof(RelationTypeManager));
-
     return rtm;
 }
 
@@ -111,30 +110,6 @@ RelationType *rtm_insert(RelationTypeManager *rtm, char *relName, int *inserted)
 
     *inserted = 1;
     return &rtm->rels[i+1];
-}
-
-
-/**
- * delete relation (not necessary but i test this implementation :#)
- * @param rtm
- * @param relName
- */
-void rtm_remove(RelationTypeManager *rtm, char *relName)
-{
-    int start = rtm_searchIDX(rtm, relName);
-    if(start == REL_NOT_FOUND)
-        return;
-
-    for(; start < rtm->lastID - 1; start++)
-    {
-        rtm->rels[start].name = rtm->rels[start + 1].name;
-        rtm->rels[start].id = rtm->rels[start + 1].id;
-    }
-
-    rtm->lastID--;
-
-    //questa cosa fa leak :3
-    //bisogna salvarsi il dato tolto per poi eliminarlo se serve :3
 }
 
 

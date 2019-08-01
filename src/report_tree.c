@@ -11,7 +11,6 @@ typedef struct s_ReportNode
 typedef struct
 {
     int modified;
-    int max;
     ReportNode *root;
 } ReportTree;
 
@@ -24,7 +23,6 @@ ReportTree *rep_init()
     ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
     t->modified = 1;
-    t->max = 0;
     return t;
 }
 
@@ -146,11 +144,12 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
         cmp = strcmp(to, itr->data);
         if (cmp == 0)
         {
-            *inserted = 0;
+            if(inserted)
+                *inserted = 0;
+
             itr->count++;
 
-            if(itr->count >= tree->max)
-                tree->modified = 1;
+            tree->modified = 1;
 
             return itr;
         }
@@ -165,8 +164,7 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     node->parent = parent;
     node->count = 1; // start at 1 relation
 
-    if(node->count >= tree->max)
-        tree->modified = 1;
+    tree->modified = 1;
 
     if (parent)
     {
@@ -180,7 +178,10 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
         tree->root = node;
     }
     rep_insertFix(tree, node);
-    *inserted = 1;
+
+    if(inserted)
+        *inserted = 1;
+
     return node;
 }
 
@@ -278,6 +279,7 @@ static inline void rep_deleteFix(ReportTree *tree, ReportNode *x)
 }
 
 
+
 void rep_delete(ReportTree *tree, ReportNode *z)
 {
     if (!z)
@@ -324,6 +326,30 @@ void rep_delete(ReportTree *tree, ReportNode *z)
         tree->root = NULL;
 }
 
+
+/**
+ * Decrease count by one, if count reach 0 delete element
+ * @param tree
+ * @param to
+ * @return 1 if element is deleted
+ */
+int rep_decrease(ReportTree *tree, char *to)
+{
+    ReportNode *rep = rep_search(tree,to);
+    if(!rep)
+        return 0;
+
+    rep->count--;
+
+    tree->modified = 1;
+
+    if(rep->count == 0)
+    {
+        rep_delete(tree, rep);
+    }
+
+    return 1;
+}
 
 void rep_clean(ReportTree *tree)
 {

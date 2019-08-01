@@ -99,7 +99,7 @@ int rh_insert(RelationHolder *rh, EntityData *other, RelationID relID)
     int i;
     for(i = rh->sizes[relID] - 1; i >= 0 && strcmp(other->name, rh->rels[relID][i]->name) < 0; i--)
     {
-        rh->rels[relID][i+1] = rh->rels[relID][1];
+        rh->rels[relID][i+1] = rh->rels[relID][i];
     }
 
     rh->rels[relID][i+1] = other;
@@ -111,7 +111,7 @@ int rh_insert(RelationHolder *rh, EntityData *other, RelationID relID)
 
 
 /**
- * delete relation (not necessary but i test this implementation :#)
+ * delete relation
  * @param rtm
  * @param relName
  */

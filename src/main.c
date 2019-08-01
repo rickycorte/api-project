@@ -8,7 +8,6 @@
 #define REPORT_ELEMENTS_SIZE 512
 #define REPORT_BUFFER_SIZE 512
 
-#define NUM_SZ 8
 
 #ifdef DEBUG
     #define SUPPORTED_RELATIONS 32
@@ -64,10 +63,172 @@ command[2][rsz-last_space-2] = '\0';
 
 
 #include "entity_tree.c"
+#include "report_tree.c"
+
+
+ReportTree reports[SUPPORTED_RELATIONS]; /* ITS EPIC COLABRODO TIME */
+
+
 #include "relation_types.c"
 #include "relation_holder.c"
 #include "relation_container.c"
 
+
+
+/****************************************
+ * MAIN
+ ****************************************/
+
+
+static char *gb_report_cache[SUPPORTED_RELATIONS] = {0};
+
+
+
+static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
+{
+    static int allocated[SUPPORTED_RELATIONS];
+    static int last_used[SUPPORTED_RELATIONS];
+
+    int out_last = 0;
+
+    if(tree->modified)
+    {
+
+        static ReportNode *out[REPORT_ELEMENTS_SIZE];
+        int max = 1;
+        int used = 0;
+
+        static ReportNode *stack[20];
+        ReportNode *curr = tree->root;
+
+        if (curr)
+        {
+
+            while (curr != &rep_sentinel || used > 0)
+            {
+                while (curr != &rep_sentinel)
+                {
+                    stack[used] = curr;
+                    used++;
+                    curr = curr->left;
+                }
+
+                curr = stack[used - 1];
+                used--;
+
+                //do shit
+                //reset on greater
+                if (curr->count > max)
+                {
+                    out[0] = curr;
+                    max = curr->count;
+                    out_last = 1;
+                } else if (curr->count == max) // append on equal
+                {
+                    out[out_last] = curr;
+                    out_last++;
+                }
+
+                curr = curr->right;
+
+            }
+
+        }
+
+        #define GRCP gb_report_cache[rel_id]
+        #define AP allocated[rel_id]
+        #define LU last_used[rel_id]
+
+        if(!GRCP)
+        {
+            GRCP = malloc(REPORT_BUFFER_SIZE);
+            AP = REPORT_BUFFER_SIZE;
+        }
+
+        last_used[rel_id] = 0;
+
+        if (out_last > 0)
+        {
+            int len = strlen(rel);
+
+            if(LU + len > AP)
+            {
+                AP += REPORT_BUFFER_SIZE;
+                GRCP = realloc(GRCP, AP);
+            }
+
+            memcpy(GRCP + LU, rel, len);
+            LU += len;
+
+            //printf("%s", rel);
+
+            for (int i = 0; i < out_last; i++)
+            {
+                len = strlen(out[i]->data); // can optimize
+
+                if(LU + len + 1> AP)
+                {
+                    AP += REPORT_BUFFER_SIZE;
+                    GRCP = realloc(GRCP, AP);
+                }
+
+                GRCP[LU] = ' ';
+                memcpy(GRCP + 1 + LU, out[i]->data, len);
+                LU += len + 1;
+
+                //printf(" %s", out[i]->data);
+
+            }
+
+            if(LU + 9 > AP)
+            {
+                AP += REPORT_BUFFER_SIZE;
+                GRCP = realloc(GRCP, AP);
+            }
+            LU += sprintf(GRCP + LU, " %d;", max);
+        }
+
+    }
+    else
+    {
+        out_last = LU;
+    }
+
+    if(LU > 0)
+    {
+        if(space)
+            fputs(" ", stdout);
+
+        fputs(GRCP, stdout);
+
+    }
+
+    #undef GRCP
+    #undef AP
+    #undef LU
+
+    tree->modified = 0;
+
+    return out_last;
+}
+
+void report(RelationTypeManager *rtm)
+{
+    short print = 0;
+    RelationID id;
+
+    for(int i =0 ; i < rtm->lastID; i++)
+    {
+        id = rtm->rels[i].id;
+        print += print_rep(rtm->rels[i].name, id, &reports[id], print);
+    }
+
+    if(!print)
+        fputs("none\n", stdout);
+    else
+        fputs("\n", stdout);
+
+}
 
 /****************************************
  * MAIN
@@ -145,7 +306,7 @@ int main(int argc, char** argv)
                     {
                         RelationType *rel = rtm_insert(rtm, command[2], &res);
 
-                        int o = rc_make_relation(source->data, dest->data, rel->id);
+                        rc_make_relation(source->data, dest->data, rel->id);
 
                     }
                 }
@@ -202,6 +363,7 @@ int main(int argc, char** argv)
         else if(buffer[0] == 'r')
         {
             //report
+            report(rtm);
 
         }
         else
@@ -219,9 +381,14 @@ int main(int argc, char** argv)
     et_clean(entities);
     free(entities);
 
-
     rtm_clean(rtm);
 
+    for(int i =0; i < SUPPORTED_RELATIONS; i++)
+    {
+        rep_clean(&reports[i]);
+        if(gb_report_cache[i])
+            free(gb_report_cache[i]);
+    }
 
     #ifdef DEBUG
     if(fl) fclose(fl);

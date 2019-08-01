@@ -29,6 +29,10 @@ int rc_make_relation(EntityData *from, EntityData* to, RelationID relID)
     if(rh_insert(&from->rel_container->out, to, relID))
     {
         rh_insert(&to->rel_container->in, from, relID);
+
+        //update cache
+        rep_insert(&reports[relID], to->name, NULL);
+
         return 1; // inserted new rel
     }
 
@@ -38,11 +42,16 @@ int rc_make_relation(EntityData *from, EntityData* to, RelationID relID)
 
 int rc_delete_relation(EntityData *from, char *to, RelationID relID)
 {
+    if(!from->rel_container)
+        return 0;
+
     EntityData *del = rh_remove(&from->rel_container->out, to, relID);
     if(del)
     {
         //rel exists
         rh_remove(&del->rel_container->in, from->name, relID);
+
+        rep_decrease(&reports[relID], to);
 
         return 1;
     }
@@ -57,6 +66,9 @@ int rc_delete_relation(EntityData *from, char *to, RelationID relID)
  */
 void rc_delete_all_for(EntityData *ent)
 {
+    if(!ent->rel_container)
+        return;
+
     //remove in rels (of current)
     for(int i = 0; i < SUPPORTED_RELATIONS; i++)
     {
@@ -68,7 +80,13 @@ void rc_delete_all_for(EntityData *ent)
         }
 
         if(arr)
+        {
             free(arr);
+            //also remove from reports
+            rep_delete(&reports[i], rep_search(&reports[i], ent->name));
+
+        }
+
     }
 
     //remove out rels
@@ -79,6 +97,8 @@ void rc_delete_all_for(EntityData *ent)
         for(int j =0; j < ent->rel_container->out.sizes[i]; j++)
         {
             rh_remove(&arr[j]->rel_container->in, ent->name, i);
+
+            rep_decrease(&reports[i], arr[j]->name);
         }
 
         if(arr)
