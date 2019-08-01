@@ -83,7 +83,6 @@ ReportTree reports[SUPPORTED_RELATIONS]; /* ITS EPIC COLABRODO TIME */
 static char *gb_report_cache[SUPPORTED_RELATIONS] = {0};
 
 
-
 static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
 {
     static int allocated[SUPPORTED_RELATIONS];
@@ -175,10 +174,9 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
                 GRCP[LU] = ' ';
                 memcpy(GRCP + 1 + LU, out[i]->data, len);
                 LU += len + 1;
-
-                //printf(" %s", out[i]->data);
-
             }
+
+            tree->max = max;
 
             if(LU + 9 > AP)
             {
@@ -186,6 +184,10 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
                 GRCP = realloc(GRCP, AP);
             }
             LU += sprintf(GRCP + LU, " %d;", max);
+        }
+        else
+        {
+            tree->max = 0;
         }
 
     }
@@ -199,7 +201,7 @@ static inline int print_rep(char *rel, int rel_id, ReportTree *tree, int space)
         if(space)
             fputs(" ", stdout);
 
-        fputs(GRCP, stdout);
+        fwrite(GRCP,1, LU, stdout);
 
     }
 

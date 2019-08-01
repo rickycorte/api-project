@@ -11,6 +11,7 @@ typedef struct s_ReportNode
 typedef struct
 {
     int modified;
+    short max;
     ReportNode *root;
 } ReportTree;
 
@@ -23,6 +24,7 @@ ReportTree *rep_init()
     ReportTree *t = malloc(sizeof(ReportTree));
     t->root = NULL;
     t->modified = 1;
+    t->max = 0;
     return t;
 }
 
@@ -149,7 +151,8 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
 
             itr->count++;
 
-            tree->modified = 1;
+            if(itr->count >= tree->max)
+                tree->modified = 1;
 
             return itr;
         }
@@ -164,7 +167,8 @@ ReportNode *rep_insert(ReportTree *tree, char *to, int *inserted)
     node->parent = parent;
     node->count = 1; // start at 1 relation
 
-    tree->modified = 1;
+    if(1 >= tree->max)
+        tree->modified = 1;
 
     if (parent)
     {
@@ -285,7 +289,8 @@ void rep_delete(ReportTree *tree, ReportNode *z)
     if (!z)
         return;
 
-    tree->modified = 1;
+    if(z->count >= tree->max)
+        tree->modified = 1;
 
     ReportNode *x, *y;
     if (z->left == &rep_sentinel || z->right == &rep_sentinel)
@@ -339,9 +344,10 @@ int rep_decrease(ReportTree *tree, char *to)
     if(!rep)
         return 0;
 
-    rep->count--;
+    if(rep->count >= tree->max)
+        tree->modified = 1;
 
-    tree->modified = 1;
+    rep->count--;
 
     if(rep->count == 0)
     {
