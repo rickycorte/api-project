@@ -22,4 +22,4 @@ Lode             |	1,640 s	       | 23,0 MiB	       | 0,872 s          | 16,8 Mi
 - Array
 - Red-Black tree (Cormen)
 - Ricerca binaria (array)
-- Inserimento in orgine (array)
+- Inserimento in ordine (array)
