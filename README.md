@@ -1,25 +1,23 @@
-# Cetrioli Fritti
+# API Project
 
-Progetto di API 2019 - Politecnico di Milano
+API Project 2019 - Politecnico di Milano
 
-## Limiti e Risultati
+This project focuses on implementing data structures and algorithms in C to create a program that executes tasks within strict time and memory limits.
 
-Il programma passa tutte le prove del verificatore, il tempo e la memoria usati nell'esecuzione sono riferiti al subtask 4 (il piu difficile e pesante di ogni problema)
+The following table presents the results from the code in this repository that obtained 30 cum laude.
 
-Problema         | Limite di tempo | Limite di memoria | Tempo esecuzione | Memoria usata
+Problema         | Time Limit | Execution Time | Memory Limit| Memory Used
  --------------- | --------------- | ----------------- | ---------------- | ------------
-Monotone         |	4,320 s	       | 200 MiB           | 1,837 s          | 161 MiB
-DropOff	         | 	6,963 s	       | 190 MiB	       | 2,774 s          | 164 MiB
-MixUp	         |  0,610 s	       | 6,00 MiB	       | 0,208 s          | 2,52 MiB
-Repeated         |	1,139 s	       | 9,00 MiB	       | 0,367 s          | 3,77 MiB
-MultipleMixUp    |	3,062 s	       | 20,0 MiB	       | 0,816 s          | 15,5 MiB
-MultipleRepeated |	5,340 s	       | 35,0 MiB	       | 1,428 s          | 28,8 MiB
-Lode             |	1,640 s	       | 23,0 MiB	       | 0,872 s          | 16,8 MiB
+Monotone         |	4,320 s	        | 1,837 s         | 200 MiB         | 161 MiB
+DropOff	         | 6,963 s	        | 2,774 s 	       | 190 MiB         | 164 MiB
+MixUp	           | 0,610 s	        | 0,208 s         | 6,00 MiB        | 2,52 MiB
+Repeated         |	1,139 s	        | 0,367 s         | 9,00 MiB	       | 3,77 MiB
+MultipleMixUp    |	3,062 s	        | 0,816 s 	       | 20,0 MiB        | 15,5 MiB
+MultipleRepeated |	5,340 s	        |1,428 s  	       | 35,0 MiB        | 28,8 MiB
+Lode             |	1,640 s	        | 0,872 s 	       | 23,0 MiB        | 16,8 MiB
 
+## Algorithms and Data Structures used
 
-## Algoritmi e Stutture dati usate
-
-- Array
-- Red-Black tree (Cormen)
-- Ricerca binaria (array)
-- Inserimento in ordine (array)
+- Arrays
+- Red-Black trees (Cormen)
+- Binary search over ordered arrays
